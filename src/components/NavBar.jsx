@@ -35,9 +35,14 @@ const NavBar = () => {
               {link.name}
             </Link>
           ))}
-          <button className="bg-brand-pink text-white px-6 py-2 rounded-full hover:bg-opacity-90 transition-all shadow-lg hover:shadow-brand-pink/20 font-semibold cursor-pointer">
+          <a
+            href="https://sumup.pt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-brand-pink text-white px-6 py-2 rounded-full hover:bg-opacity-90 transition-all shadow-lg hover:shadow-brand-pink/20 font-semibold cursor-pointer"
+          >
             Marcar
-          </button>
+          </a>
         </div>
 
         {/* Mobile Toggle */}
@@ -62,9 +67,14 @@ const NavBar = () => {
               {link.name}
             </Link>
           ))}
-          <button className="bg-brand-pink text-white px-8 py-3 rounded-full hover:bg-opacity-90 transition-all font-semibold w-3/4">
+          <a
+            href="https://sumup.pt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-brand-pink text-white px-8 py-3 rounded-full hover:bg-opacity-90 transition-all font-semibold w-3/4 text-center"
+          >
             Marcar
-          </button>
+          </a>
         </div>
       )}
     </nav>

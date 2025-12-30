@@ -15,7 +15,9 @@ const Contact = () => {
       />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 text-center px-4">
-        <h1 className="text-3xl md:text-5xl font-bold mb-4 mt-4">Contacte-nos</h1>
+        <h1 className="text-3xl md:text-5xl font-bold mb-4 mt-4">
+          Contacte-nos
+        </h1>
         <p className="text-gray-300 max-w-2xl mx-auto text-lg">
           Estamos à sua espera para transformar o seu olhar. Agende já a sua
           visita.
@@ -92,7 +94,7 @@ const Contact = () => {
           </div>
 
           {/* Map Side */}
-          <div className="w-full md:w-1/2 min-h-[300px] md:min-h-full relative bg-gray-200">
+          <div className="w-full md:w-1/2 min-h-[400px] md:min-h-auto relative bg-gray-200">
             <iframe
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1556.709971939103!2d-9.139!3d38.722!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd19337424b7a159%3A0x6280436c612660a1!2sLisboa!5e0!3m2!1spt-PT!2spt!4v1652798231268!5m2!1spt-PT!2spt"
               width="100%"
