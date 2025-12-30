@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
+import Services from "./pages/Services";
 import NavBar from "./components/NavBar";
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/servicos" element={<Services />} />
           {/* Add other routes here later */}
         </Routes>
       </main>
