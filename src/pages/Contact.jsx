@@ -15,14 +15,14 @@ const Contact = () => {
       />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 text-center px-4">
-        <h1 className="text-3xl md:text-5xl font-bold mb-4">Contacte-nos</h1>
+        <h1 className="text-3xl md:text-5xl font-bold mb-4 mt-4">Contacte-nos</h1>
         <p className="text-gray-300 max-w-2xl mx-auto text-lg">
           Estamos à sua espera para transformar o seu olhar. Agende já a sua
           visita.
         </p>
       </div>
 
-      <div className="container mx-auto px-4 -mt-10">
+      <div className="container mx-auto px-4 mt-8 md:-mt-10 lg:-mt-16">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
           {/* Info Side */}
           <div className="w-full md:w-1/2 p-8 md:p-12">
