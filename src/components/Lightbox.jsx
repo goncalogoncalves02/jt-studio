@@ -5,7 +5,7 @@ const Lightbox = ({ image, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 animate-fade-in"
       onClick={onClose}
     >
       <button

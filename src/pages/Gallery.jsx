@@ -28,7 +28,7 @@ const Gallery = () => {
               className="min-w-[80vw] md:min-w-0 snap-center cursor-pointer group relative overflow-hidden rounded-xl shadow-md hover:shadow-xl transition-all duration-300"
               onClick={() => setSelectedImage(image)}
             >
-              <div className="aspect-[3/4] md:aspect-auto">
+              <div className="aspect-3/4 md:aspect-auto">
                 <img
                   src={image.src}
                   alt={image.alt}
@@ -51,7 +51,7 @@ const Gallery = () => {
             href="https://instagram.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 via-brand-pink to-orange-400 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+            className="inline-flex items-center gap-2 bg-linear-to-r from-purple-500 via-brand-pink to-orange-400 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
           >
             <FaInstagram className="text-2xl" />
             Siga-nos no Instagram
