@@ -1,5 +1,9 @@
 import { Link } from "react-router-dom";
+<<<<<<< HEAD
 import { FaFeatherAlt, FaMagic, FaRegGem } from "react-icons/fa";
+=======
+import { FaFeatherAlt, FaMagic, FaRegGem } from "react-icons/fa"; // Using fa icons as placeholders, ensure react-icons is installed
+>>>>>>> 0e3ce3052f48192f383ec2cee0eefd52e54fae7b
 
 const ServiceHighlights = () => {
   const services = [
@@ -29,7 +33,11 @@ const ServiceHighlights = () => {
     <section className="py-20 bg-white">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
+<<<<<<< HEAD
           <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+=======
+          <h2 className="text-3xl(md) text-4xl font-bold text-brand-dark mb-4">
+>>>>>>> 0e3ce3052f48192f383ec2cee0eefd52e54fae7b
             Os Nossos Serviços
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
@@ -47,7 +55,13 @@ const ServiceHighlights = () => {
               <h3 className="text-xl font-bold text-brand-dark mb-3">
                 {service.title}
               </h3>
+<<<<<<< HEAD
               <p className="text-gray-600 mb-6 grow">{service.description}</p>
+=======
+              <p className="text-gray-600 mb-6 flex-grow">
+                {service.description}
+              </p>
+>>>>>>> 0e3ce3052f48192f383ec2cee0eefd52e54fae7b
               <Link
                 to="/servicos"
                 className="text-brand-pink font-semibold hover:text-brand-dark transition-colors border-b-2 border-transparent hover:border-brand-pink"
