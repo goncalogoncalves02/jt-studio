@@ -1,14 +1,18 @@
-import "./App.css";
+import NavBar from "./components/NavBar";
 
 function App() {
   return (
-    <>
-      <div className="flex justify-center items-center h-screen bg-slate-900">
-        <h1 className="text-3xl font-bold text-sky-400">
-          Olá, Tailwind em Portugal!
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      <NavBar />
+      <main className="pt-24 px-4 container mx-auto">
+        <h1 className="text-4xl font-bold text-brand-dark mb-4">
+          Bem-vindo ao JT Studio
         </h1>
-      </div>
-    </>
+        <p className="text-lg text-gray-700">
+          O seu espaço de beleza e estética.
+        </p>
+      </main>
+    </div>
   );
 }
 
