@@ -2,12 +2,17 @@ import { useState } from "react";
 import { galleryImages } from "../data/galleryData";
 import Lightbox from "../components/Lightbox";
 import { FaInstagram } from "react-icons/fa";
+import SEO from "../components/SEO";
 
 const Gallery = () => {
   const [selectedImage, setSelectedImage] = useState(null);
 
   return (
     <div className="min-h-screen bg-white pb-20">
+      <SEO
+        title="Galeria"
+        description="Veja os resultados dos nossos procedimentos de Microblading e Estética. Fotos de antes e depois."
+      />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 text-center px-4">
         <h1 className="text-3xl md:text-5xl font-bold mb-4">

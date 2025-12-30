@@ -4,10 +4,15 @@ import {
   FaPhoneAlt,
   FaMapMarkerAlt,
 } from "react-icons/fa";
+import SEO from "../components/SEO";
 
 const Contact = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      <SEO
+        title="Contactos"
+        description="Entre em contacto connosco. Localização, email, telefone e agendamento online."
+      />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 text-center px-4">
         <h1 className="text-3xl md:text-5xl font-bold mb-4">Contacte-nos</h1>

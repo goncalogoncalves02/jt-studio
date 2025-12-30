@@ -1,10 +1,15 @@
 import FAQAccordion from "../components/FAQAccordion";
 import { faqData } from "../data/faqData";
 import { FiCheckCircle, FiInfo } from "react-icons/fi";
+import SEO from "../components/SEO";
 
 const Info = () => {
   return (
     <div className="min-h-screen bg-white pb-20">
+      <SEO
+        title="Info & FAQ"
+        description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento. Tire as suas dúvidas."
+      />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 text-center px-4">
         <h1 className="text-3xl md:text-5xl font-bold mb-4">
