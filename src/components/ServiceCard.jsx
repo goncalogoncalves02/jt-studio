@@ -14,12 +14,12 @@ const ServiceCard = ({ service }) => {
       </div>
 
       {/* Content */}
-      <div className="p-6 flex flex-col flex-grow">
+      <div className="p-6 flex flex-col grow">
         <h3 className="text-2xl font-bold text-brand-dark mb-2">
           {service.title}
         </h3>
 
-        <p className="text-gray-600 mb-6 flex-grow leading-relaxed">
+        <p className="text-gray-600 mb-6 grow leading-relaxed">
           {service.description}
         </p>
 
