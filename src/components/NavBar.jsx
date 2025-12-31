@@ -36,7 +36,7 @@ const NavBar = () => {
             </Link>
           ))}
           <a
-            href="https://sumup.pt"
+            href="https://www.sumupbookings.com/takiuti-studio"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-brand-pink text-white px-6 py-2 rounded-full hover:bg-opacity-90 transition-all shadow-lg hover:shadow-brand-pink/20 font-semibold cursor-pointer"
@@ -68,7 +68,7 @@ const NavBar = () => {
             </Link>
           ))}
           <a
-            href="https://sumup.pt"
+            href="https://www.sumupbookings.com/takiuti-studio"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-brand-pink text-white px-8 py-3 rounded-full hover:bg-opacity-90 transition-all font-semibold w-3/4 text-center"

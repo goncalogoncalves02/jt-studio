@@ -24,7 +24,7 @@ const HeroSection = () => {
           rosto merece o melhor cuidado.
         </p>
         <a
-          href="https://sumup.pt"
+          href="https://www.sumupbookings.com/takiuti-studio"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-block bg-brand-pink text-white text-lg font-semibold px-8 py-4 rounded-full shadow-lg hover:bg-opacity-90 transition-transform transform hover:scale-105"
