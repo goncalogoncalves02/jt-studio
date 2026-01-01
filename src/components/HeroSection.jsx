@@ -20,7 +20,7 @@ const HeroSection = () => {
           Realça a tua <span className="text-brand-pink">beleza natural</span>
         </h1>
         <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-xl mx-auto md:mx-0">
-          Especialistas em Microblading, Nanoblading e Estética Avançada. O teu
+          Especialista em Nanoblading (Fios Realistas), Microblading, Estética Avançada e Tattoo. O teu
           rosto merece o melhor cuidado.
         </p>
         <a

@@ -5,22 +5,22 @@ const ServiceHighlights = () => {
   const services = [
     {
       id: 1,
-      title: "Microblading",
-      description: "Sobrancelhas perfeitas e naturais com a técnica fio a fio.",
+      title: "Micropigmentação",
+      description: "Maquilhagem semipermanente completa: realce sobrancelhas, olhos e lábios com naturalidade.",
       icon: <FaFeatherAlt className="text-4xl text-brand-pink mb-4" />,
     },
     {
       id: 2,
-      title: "Nanoblading",
+      title: "Tattoo",
       description:
-        "Fios ainda mais finos e delicados para um realismo impressionante.",
+        "Da delicadeza do Fine Line à intensidade do Black Work. Arte exclusiva e personalizada na sua pele.",
       icon: <FaMagic className="text-4xl text-brand-pink mb-4" />,
     },
     {
       id: 3,
-      title: "Estética Avançada",
+      title: "Remoção a Laser",
       description:
-        "Tratamentos faciais e corporais para rejuvenescer a sua pele.",
+        "Remoção eficaz de tatuagens e despigmentação estética utilizando laser de alta precisão.",
       icon: <FaRegGem className="text-4xl text-brand-pink mb-4" />,
     },
   ];

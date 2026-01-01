@@ -14,8 +14,8 @@ const Gallery = () => {
         description="Veja os resultados dos nossos procedimentos de Microblading e Estética. Fotos de antes e depois."
       />
       {/* Header */}
-      <div className="bg-brand-dark text-white py-16 text-center px-4">
-        <h1 className="text-3xl md:text-5xl font-bold mb-4 mt-4">
+      <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
           Galeria de Resultados
         </h1>
         <p className="text-gray-300 max-w-2xl mx-auto text-lg">

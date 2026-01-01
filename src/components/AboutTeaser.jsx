@@ -19,7 +19,7 @@ const AboutTeaser = () => {
             Olá, sou a Jaqueline Takiuti
           </h2>
           <h3 className="text-xl text-brand-pink font-medium mb-6">
-            Especialista em Microblading & Estética
+            Especialista em Nanoblading & Estética
           </h3>
           <p className="text-gray-700 text-lg leading-relaxed mb-6">
             Com anos de experiência e diversas certificações internacionais,

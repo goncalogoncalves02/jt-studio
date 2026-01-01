@@ -1,7 +1,7 @@
 export const servicesData = [
   {
     id: 1,
-    title: "Micropigmentação Sobrancelhas",
+    title: "Micropigmentação Sobrancelhas - Nanoblading / Shadow",
     description: "Técnica de maquilhagem semipermanente que simula fios reais. Ideal para preencher falhas, corrigir assimetrias e definir um formato natural e harmonioso.",
     price: "€130.00",
     duration: "1h",

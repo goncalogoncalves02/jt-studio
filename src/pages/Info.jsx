@@ -11,8 +11,8 @@ const Info = () => {
         description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento. Tire as suas dúvidas."
       />
       {/* Header */}
-      <div className="bg-brand-dark text-white py-16 text-center px-4">
-        <h1 className="text-3xl md:text-5xl font-bold mb-4 mt-4">
+      <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
           Informações Úteis
         </h1>
         <p className="text-gray-300 max-w-2xl mx-auto text-lg">
