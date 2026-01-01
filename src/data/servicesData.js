@@ -2,7 +2,8 @@ import bocaImg from "../assets/boca.webp";
 import eyelinerImg from "../assets/eyeliner.webp";
 import tattooImg from "../assets/tattoo.webp";
 import laserImg from "../assets/laser.webp";
-import heroImg from "../assets/hero.webp"; // Using hero for microblading/nanoblading for now
+import nanobladingImg from "../assets/nanoblading.webp";
+import designImg from "../assets/design.webp";
 
 export const servicesData = [
   {
@@ -11,7 +12,7 @@ export const servicesData = [
     description: "Técnica de maquilhagem semipermanente que simula fios reais. Ideal para preencher falhas, corrigir assimetrias e definir um formato natural e harmonioso.",
     price: "€130.00",
     duration: "1h",
-    imageUrl: heroImg,
+    imageUrl: nanobladingImg,
     bookingUrl: "https://www.sumupbookings.com/takiuti-studio"
   },
   {
@@ -38,7 +39,7 @@ export const servicesData = [
     description: "O formato ideal para o seu rosto. Mapeamento geométrico personalizado para alinhar, limpar e definir as sobrancelhas, valorizando a sua expressão natural sem procedimentos definitivos.",
     price: "€10",
     duration: "15m",
-    imageUrl: heroImg, // Reusing hero image or maybe needs a specific one
+    imageUrl: designImg,
     bookingUrl: "https://www.sumupbookings.com/takiuti-studio"
   },
   {

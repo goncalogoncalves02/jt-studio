@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 
 const SEO = ({ title, description }) => {
-  const siteTitle = "JT Studio | Microblading & Estética";
+  const siteTitle = "JT Studio | Micropigmentação & Estética";
   const defaultDescription =
     "Realce a sua beleza natural com Microblading, Nanoblading e Estética Avançada no JT Studio. Agende já a sua sessão.";
 
