@@ -82,30 +82,39 @@ const Footer = () => {
             <li className="flex items-center gap-3">
               <FaWhatsapp className="text-brand-pink text-xl" />
               <a
-                href="https://wa.me/351910000000"
+                href="https://wa.me/351962149209"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-white transition-colors"
               >
-                +351 910 000 000
+                +351 962 149 209
               </a>
             </li>
             <li className="flex items-center gap-3">
-              <FaEnvelope className="text-brand-pink text-xl" />
+              <FaInstagram className="text-brand-pink text-xl" />
               <a
-                href="mailto:info@jtstudio.pt"
+                href="https://www.instagram.com/jtmicroblading/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-400 hover:text-white transition-colors"
               >
-                info@jtstudio.pt
+                @jtmicroblading
               </a>
             </li>
             <li className="flex items-start gap-3">
               <FaMapMarkerAlt className="text-brand-pink text-xl mt-1" />
-              <span className="text-gray-400">
-                Rua da Beleza, 123
-                <br />
-                1000-000 Lisboa, Portugal
-              </span>
+              <a
+                href="https://maps.app.goo.gl/5hpuH5kQ1kCkbFqt8"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-brand-pink transition-colors"
+              >
+                <span className="text-gray-400">
+                  Estrada das Machadas, n° 3C
+                  <br />
+                  2900-466 Setúbal, Portugal
+                </span>
+              </a>
             </li>
           </ul>
         </div>

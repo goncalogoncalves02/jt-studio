@@ -42,6 +42,7 @@ const Contact = () => {
                   <h3 className="font-semibold text-gray-900">WhatsApp</h3>
                   <a
                     href="https://wa.me/351962149209"
+                    target="_blank"
                     className="text-gray-600 hover:text-brand-pink transition-colors"
                   >
                     +351 962 149 209
@@ -60,6 +61,7 @@ const Contact = () => {
                   <h3 className="font-semibold text-gray-900">Instagram</h3>
                   <a
                     href="https://www.instagram.com/jtmicroblading/"
+                    target="_blank"
                     className="text-gray-600 hover:text-brand-pink transition-colors"
                   >
                     @jtmicroblading
@@ -74,7 +76,7 @@ const Contact = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900">Morada</h3>
                   <a
-                    href="https://www.google.com/maps/place/JT+Studio/@38.7220000,-9.1390000,17z/data=!3m1!4b1!4m5!3m4!1s0xd19337424b7a159:0x6280436c612660a1!8m2!3d38.7220000!4d-9.1370000"
+                    href="https://maps.app.goo.gl/5hpuH5kQ1kCkbFqt8"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-600 hover:text-brand-pink transition-colors"

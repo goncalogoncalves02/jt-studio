@@ -53,7 +53,7 @@ const Gallery = () => {
         {/* Instagram CTA */}
         <div className="mt-16 text-center">
           <a
-            href="https://instagram.com"
+            href="https://www.instagram.com/jtmicroblading/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-linear-to-r from-purple-500 via-brand-pink to-orange-400 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
