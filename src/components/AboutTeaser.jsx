@@ -1,3 +1,5 @@
+import perfilImg from "../assets/perfil.webp";
+
 const AboutTeaser = () => {
   return (
     <section className="py-16 bg-gray-50">
@@ -6,7 +8,7 @@ const AboutTeaser = () => {
         <div className="w-full md:w-1/3 flex justify-center">
           <div className="w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden border-4 border-brand-light-pink shadow-xl">
             <img
-              src="https://placehold.co/400x400/18181b/white?text=Jaqueline"
+              src={perfilImg}
               alt="Jaqueline Takiuti"
               className="w-full h-full object-cover"
             />

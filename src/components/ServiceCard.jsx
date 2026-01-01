@@ -4,13 +4,12 @@ const ServiceCard = ({ service }) => {
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 flex flex-col h-full transform hover:-translate-y-1">
       {/* Image Header */}
-      <div className="h-48 overflow-hidden relative group">
+      <div className="h-64 overflow-hidden relative group bg-gray-50">
         <img
           src={service.imageUrl}
           alt={service.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
       </div>
 
       {/* Content */}

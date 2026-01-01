@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import heroImg from "../assets/hero-extended.webp";
 
 const HeroSection = () => {
   return (
@@ -7,8 +8,7 @@ const HeroSection = () => {
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage:
-            "url('https://placehold.co/1920x1080/pink/white?text=JT+Beauty+Studio')",
+          backgroundImage: `url(${heroImg})`,
         }}
       >
         <div className="absolute inset-0 bg-black/50"></div>
@@ -20,8 +20,8 @@ const HeroSection = () => {
           Realça a tua <span className="text-brand-pink">beleza natural</span>
         </h1>
         <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-xl mx-auto md:mx-0">
-          Especialista em Nanoblading (Fios Realistas), Microblading, Estética Avançada e Tattoo. O teu
-          rosto merece o melhor cuidado.
+          Especialista em Nanoblading (Fios Realistas), Microblading, Estética
+          Avançada e Tattoo. O teu rosto merece o melhor cuidado.
         </p>
         <a
           href="https://www.sumupbookings.com/takiuti-studio"
