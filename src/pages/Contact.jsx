@@ -1,5 +1,6 @@
 import {
   FaWhatsapp,
+  FaInstagram,
   FaEnvelope,
   FaPhoneAlt,
   FaMapMarkerAlt,
@@ -40,10 +41,10 @@ const Contact = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900">WhatsApp</h3>
                   <a
-                    href="https://wa.me/351910000000"
+                    href="https://wa.me/351962149209"
                     className="text-gray-600 hover:text-brand-pink transition-colors"
                   >
-                    +351 910 000 000
+                    +351 962 149 209
                   </a>
                   <p className="text-sm text-gray-500 mt-1">
                     Resposta rápida garantida.
@@ -53,15 +54,15 @@ const Contact = () => {
 
               <div className="flex items-start gap-4">
                 <div className="bg-brand-light-pink/30 p-3 rounded-full">
-                  <FaEnvelope className="text-2xl text-brand-pink" />
+                  <FaInstagram className="text-2xl text-brand-pink" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Email</h3>
+                  <h3 className="font-semibold text-gray-900">Instagram</h3>
                   <a
-                    href="mailto:info@jtstudio.pt"
+                    href="https://www.instagram.com/jtmicroblading/"
                     className="text-gray-600 hover:text-brand-pink transition-colors"
                   >
-                    info@jtstudio.pt
+                    @jtmicroblading
                   </a>
                 </div>
               </div>
@@ -72,23 +73,30 @@ const Contact = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Morada</h3>
-                  <p className="text-gray-600">
-                    Rua da Beleza, 123
-                    <br />
-                    1000-000 Lisboa, Portugal
-                  </p>
+                  <a
+                    href="https://www.google.com/maps/place/JT+Studio/@38.7220000,-9.1390000,17z/data=!3m1!4b1!4m5!3m4!1s0xd19337424b7a159:0x6280436c612660a1!8m2!3d38.7220000!4d-9.1370000"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-600 hover:text-brand-pink transition-colors"
+                  >
+                    <p className="text-gray-600">
+                      Estrada das Machadas, n° 3C
+                      <br />
+                      2900-466 Setúbal, Portugal
+                    </p>
+                  </a>
                 </div>
               </div>
             </div>
 
             <div className="mt-10">
               <a
-                href="https://sumup.pt"
+                href="https://www.sumupbookings.com/takiuti-studio"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full text-center bg-brand-dark text-white font-bold py-4 rounded-xl hover:bg-brand-pink transition-colors duration-300 shadow-lg"
               >
-                Agendar Online (SumUp)
+                Agendar Online
               </a>
             </div>
           </div>
@@ -96,7 +104,7 @@ const Contact = () => {
           {/* Map Side */}
           <div className="w-full md:w-1/2 min-h-[400px] md:min-h-auto relative bg-gray-200">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1556.709971939103!2d-9.139!3d38.722!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd19337424b7a159%3A0x6280436c612660a1!2sLisboa!5e0!3m2!1spt-PT!2spt!4v1652798231268!5m2!1spt-PT!2spt"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d195.0668174828145!2d-8.898165395866998!3d38.53217575333997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd1943a3725116a3%3A0x1ded7669472cf180!2sEstr.%20das%20Machadas%203C%2C%202900-466%20Set%C3%BAbal!5e0!3m2!1spt-PT!2spt!4v1767307877115!5m2!1spt-PT!2spt"
               width="100%"
               height="100%"
               style={{ border: 0 }}
