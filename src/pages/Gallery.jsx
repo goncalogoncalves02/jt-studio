@@ -33,7 +33,7 @@ const Gallery = () => {
               className="min-w-[80vw] md:min-w-0 snap-center cursor-pointer group relative overflow-hidden rounded-xl shadow-md hover:shadow-xl transition-all duration-300"
               onClick={() => setSelectedImage(image)}
             >
-              <div className="aspect-3/4 md:aspect-auto">
+              <div className="aspect-3/4 md:h-96 md:aspect-auto">
                 <img
                   src={image.src}
                   alt={image.alt}
