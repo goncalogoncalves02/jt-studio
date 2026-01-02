@@ -6,3 +6,32 @@
   --color-brand-dark: #18181b;
   --color-brand-gold: #d4af37;
 }
+
+/* --- Ajuste Mobile do Cookiebot (Versão Final Segura) --- */
+@media (max-width: 768px) {
+  div#CybotCookiebotDialog {
+    left: 50% !important;
+    transform: translateX(-50%) scale(0.80) !important;
+    transform-origin: bottom center !important;
+    margin: 0 !important;
+    bottom: 0 !important;
+  }
+}
+
+@media (min-width: 769px) {
+  div#CybotCookiebotDialog {
+    /* 1. Anula a centralização vertical automática */
+    top: auto !important;
+    
+    /* 2. Cola ao fundo (com uma margem de 30px para "respirar") */
+    bottom: 30px !important;
+    
+    /* 3. Mantém centrado horizontalmente */
+    left: 50% !important;
+    transform: translateX(-50%) scale(0.80) !important;
+
+    transform-origin: bottom center !important;
+    margin: 0 !important;
+    bottom: 0 !important;
+  }
+}
