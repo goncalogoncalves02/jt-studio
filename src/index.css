@@ -6,3 +6,18 @@
   --color-brand-dark: #18181b;
   --color-brand-gold: #d4af37;
 }
+
+/* --- Ajuste do Cookiebot para Mobile --- */
+@media (max-width: 768px) {
+  div#CybotCookiebotDialog {
+    /* Reduz o tamanho para 75% (podes baixar para 65% se quiseres menos) */
+    scale: 0.75;
+    
+    /* Importante: Mantém o banner colado ao fundo enquanto encolhe */
+    transform-origin: bottom center;
+    
+    /* Opcional: Garante que não fica com margens estranhas */
+    width: 133% !important; /* Compensa o encolhimento para ocupar a largura toda */
+    left: -16.5% !important; /* Centra novamente */
+  }
+}
