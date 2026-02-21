@@ -4,7 +4,7 @@ const SEO = ({ title, description, image, url }) => {
   const siteTitle = "JT Studio | Micropigmentação & Estética";
   const defaultDescription =
     "Realce a sua beleza natural com Microblading, Nanoblading e Estética Avançada no JT Studio. Agende já a sua sessão.";
-  const siteUrl = "https://jaquelinetakiustudio.com";
+  const siteUrl = "https://jaquelinetakiutistudio.com";
   const defaultImage = `${siteUrl}/og-image.png`; // A tal imagem de 1200x630 que criaste
 
   return (
