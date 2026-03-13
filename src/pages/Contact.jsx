@@ -12,7 +12,7 @@ const Contact = () => {
     <div className="min-h-screen bg-gray-50 pb-20">
       <SEO
         title="Contactos"
-        description="Entre em contacto connosco. Localização, email, telefone e agendamento online."
+        description="Contacte o JT Studio em Setúbal. Morada: Estrada das Machadas nº 3C. Telefone: +351 962 149 209. Agende online."
       />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
@@ -43,6 +43,7 @@ const Contact = () => {
                   <a
                     href="https://wa.me/351962149209"
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="text-gray-600 hover:text-brand-pink transition-colors"
                   >
                     +351 962 149 209
@@ -62,6 +63,7 @@ const Contact = () => {
                   <a
                     href="https://www.instagram.com/jtmicroblading/"
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="text-gray-600 hover:text-brand-pink transition-colors"
                   >
                     @jtmicroblading
@@ -107,6 +109,7 @@ const Contact = () => {
           <div className="w-full md:w-1/2 min-h-[400px] md:min-h-auto relative bg-gray-200">
             <iframe
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d195.0668174828145!2d-8.898165395866998!3d38.53217575333997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd1943a3725116a3%3A0x1ded7669472cf180!2sEstr.%20das%20Machadas%203C%2C%202900-466%20Set%C3%BAbal!5e0!3m2!1spt-PT!2spt!4v1767307877115!5m2!1spt-PT!2spt"
+              title="Mapa de localização do JT Studio em Setúbal"
               width="100%"
               height="100%"
               style={{ border: 0 }}

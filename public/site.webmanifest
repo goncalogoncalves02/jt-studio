@@ -1,0 +1,27 @@
+{
+  "name": "JT Studio | Micropigmentação & Estética",
+  "short_name": "JT Studio",
+  "description": "Micropigmentação, Nanoblading e Estética Avançada em Setúbal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#be185d",
+  "lang": "pt-PT",
+  "icons": [
+    {
+      "src": "/favicon-48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,15 +1,34 @@
+import { Helmet } from "react-helmet-async";
 import FAQAccordion from "../components/FAQAccordion";
 import { faqData } from "../data/faqData";
 import { FiCheckCircle, FiInfo } from "react-icons/fi";
 import SEO from "../components/SEO";
 
 const Info = () => {
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqData.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-white pb-20">
       <SEO
         title="Info & FAQ"
-        description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento. Tire as suas dúvidas."
+        description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento no JT Studio, Setúbal. Tire todas as suas dúvidas."
       />
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify(faqSchema)}
+        </script>
+      </Helmet>
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
         <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">

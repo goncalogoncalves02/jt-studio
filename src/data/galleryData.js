@@ -15,7 +15,7 @@ export const galleryImages = [
   { id: 4, src: tattoo1, alt: "Fine Line Tattoo" },
   { id: 5, src: nanoblading2, alt: "Nanoblading Resultado" },
   { id: 6, src: boca2, alt: "Lábios Cicatrizados" },
-  { id: 7, src: nanoblading3, alt: "Nanoblading Resultado" },
+  { id: 7, src: nanoblading3, alt: "Nanoblading Antes e Depois" },
   { id: 8, src: tattoo2, alt: "Tatuagem Delicada" },
   { id: 9, src: boca3, alt: "Micropigmentação Labial Resultado" },
 ];

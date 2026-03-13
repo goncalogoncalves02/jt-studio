@@ -11,7 +11,7 @@ const Gallery = () => {
     <div className="min-h-screen bg-white pb-20">
       <SEO
         title="Galeria"
-        description="Veja os resultados dos nossos procedimentos de Microblading e Estética. Fotos de antes e depois."
+        description="Galeria de resultados de Nanoblading, Micropigmentação Labial e Tattoo no JT Studio em Setúbal. Fotos reais de antes e depois."
       />
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">

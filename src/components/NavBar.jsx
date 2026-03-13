@@ -49,6 +49,9 @@ const NavBar = () => {
         <button
           className="md:hidden text-2xl text-brand-pink focus:outline-none"
           onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? "Fechar menu de navegação" : "Abrir menu de navegação"}
+          aria-expanded={isOpen}
+          aria-controls="mobile-nav-menu"
         >
           {isOpen ? <FiX /> : <FiMenu />}
         </button>
@@ -56,7 +59,7 @@ const NavBar = () => {
 
       {/* Mobile Drawer */}
       {isOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-brand-dark border-t border-gray-800 flex flex-col items-center py-6 space-y-6 animate-fade-in shadow-xl">
+        <div id="mobile-nav-menu" className="md:hidden absolute top-full left-0 w-full bg-brand-dark border-t border-gray-800 flex flex-col items-center py-6 space-y-6 animate-fade-in shadow-xl">
           {navLinks.map((link) => (
             <Link
               key={link.name}

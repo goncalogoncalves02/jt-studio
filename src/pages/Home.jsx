@@ -6,7 +6,9 @@ import SEO from "../components/SEO";
 const Home = () => {
   return (
     <div className="flex flex-col w-full">
-      <SEO />
+      <SEO
+        description="JT Studio em Setúbal: especialistas em Nanoblading, Micropigmentação Labial, Soft Eyeliner, Tattoo e Remoção a Laser. Agende a sua sessão."
+      />
       <HeroSection />
       <AboutTeaser />
       <ServiceHighlights />
