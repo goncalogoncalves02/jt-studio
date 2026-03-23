@@ -7,7 +7,7 @@ const ServiceCard = ({ service }) => {
       <div className="h-64 overflow-hidden relative group bg-gray-50">
         <img
           src={service.imageUrl}
-          alt={service.title}
+          alt={`${service.title} — JT Studio Setúbal`}
           loading="lazy"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />

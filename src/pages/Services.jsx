@@ -44,11 +44,10 @@ const Services = () => {
       {/* Page Header */}
       <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
         <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-          Os Nossos Serviços
+          Serviços de Micropigmentação e Tattoo em Setúbal
         </h1>
         <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-          Conheça em detalhe os nossos procedimentos estéticos, desenhados para
-          realçar a sua beleza com naturalidade e segurança.
+          Conheça os serviços de micropigmentação, nanoblading, soft eyeliner, tattoo e remoção a laser disponíveis no JT Studio em Setúbal. Resultados naturais com segurança.
         </p>
       </div>
 

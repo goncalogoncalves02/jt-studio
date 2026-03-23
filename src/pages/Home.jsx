@@ -7,7 +7,7 @@ const Home = () => {
   return (
     <div className="flex flex-col w-full">
       <SEO
-        description="JT Studio em Setúbal: especialistas em Nanoblading, Micropigmentação Labial, Soft Eyeliner, Tattoo e Remoção a Laser. Agende a sua sessão."
+        description="JT Studio em Setúbal: especialistas em Nanoblading, Micropigmentação Labial, Soft Eyeliner, Tattoo e Remoção a Laser. Avaliação 4.9★ no Google. Agende já."
       />
       <HeroSection />
       <AboutTeaser />

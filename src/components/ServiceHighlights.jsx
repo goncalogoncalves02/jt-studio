@@ -30,10 +30,10 @@ const ServiceHighlights = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
-            Os Nossos Serviços
+            Serviços de Micropigmentação e Estética em Setúbal
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Descubra os tratamentos mais procurados no JT Studio.
+            Descubra os tratamentos de micropigmentação, tattoo e estética mais procurados no JT Studio em Setúbal.
           </p>
         </div>
 

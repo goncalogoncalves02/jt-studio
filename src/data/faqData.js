@@ -1,8 +1,8 @@
 export const faqData = [
   {
     id: 1,
-    question: "O procedimento de Microblading dói?",
-    answer: "O desconforto é mínimo e muito suportável. Utilizamos anestésicos tópicos de alta qualidade antes e durante o procedimento para garantir que te sentes confortável. A maioria das clientes descreve a sensação como arranhões leves ou pinçadas."
+    question: "O Microblading e o Nanoblading doem?",
+    answer: "No JT Studio em Setúbal, utilizamos anestésicos tópicos de alta qualidade antes e durante o procedimento para garantir o máximo conforto. O desconforto é mínimo e muito suportável. A maioria das clientes descreve a sensação como arranhões leves ou pinçadas."
   },
   {
     id: 2,
@@ -22,6 +22,31 @@ export const faqData = [
   {
     id: 5,
     question: "Qual a diferença entre Microblading e Nanoblading?",
-    answer: "O Microblading utiliza uma lâmina padrão para criar fios realistas. O Nanoblading utiliza lâminas ultrafinas (nano agulhas) para criar fios ainda mais delicados e com um aspeto hiper-realista, ideal para quem procura o resultado mais natural possível."
+    answer: "O Microblading utiliza uma lâmina padrão para criar fios realistas. O Nanoblading utiliza lâminas ultrafinas (nano agulhas) para criar fios ainda mais delicados e com um aspeto hiper-realista, ideal para quem procura o resultado mais natural possível. No JT Studio em Setúbal oferecemos ambas as técnicas e aconselhamos a mais adequada ao seu tipo de pele e resultado pretendido."
+  },
+  {
+    id: 6,
+    question: "Onde fica o JT Studio em Setúbal?",
+    answer: "O JT Studio está localizado na Estrada das Machadas, nº 3C, 2900-466 Setúbal. Recebemos clientes de toda a península de Setúbal, incluindo Palmela, Azeitão, Sesimbra e Pinhal Novo. Para agendar, contacte-nos pelo WhatsApp (+351 962 149 209) ou através do nosso sistema de marcações online."
+  },
+  {
+    id: 7,
+    question: "Quanto custa a micropigmentação de sobrancelhas em Setúbal?",
+    answer: "No JT Studio em Setúbal, a micropigmentação de sobrancelhas (Nanoblading ou Shadow) tem um valor de €130. O preço inclui a sessão completa com mapeamento facial personalizado. O design de sobrancelhas simples está disponível a partir de €10. Recomendamos um retoque anual para manter os resultados."
+  },
+  {
+    id: 8,
+    question: "Quanto custa a micropigmentação labial em Setúbal?",
+    answer: "A micropigmentação labial no JT Studio em Setúbal tem um valor de €140. O procedimento inclui definição do contorno, efeito lip blush ou neutralização de tons escuros, com um aspeto natural e saudável. A sessão tem uma duração aproximada de 1h20."
+  },
+  {
+    id: 9,
+    question: "O JT Studio faz tatuagens em Setúbal?",
+    answer: "Sim, o JT Studio em Setúbal realiza tatuagens personalizadas e exclusivas. Trabalhamos estilos como Fine Line, Black Work e tatuagens delicadas. O preço é sob consulta, conforme a complexidade e tamanho do projeto. Agende uma consulta gratuita para discutir a sua ideia."
+  },
+  {
+    id: 10,
+    question: "Como posso agendar uma sessão no JT Studio?",
+    answer: "Pode agendar a sua sessão no JT Studio em Setúbal de várias formas: pelo WhatsApp (+351 962 149 209), através do nosso sistema de marcações online no SumUp Bookings, ou via mensagem no Instagram (@jtmicroblading). Funcionamos exclusivamente por marcação prévia."
   }
 ];

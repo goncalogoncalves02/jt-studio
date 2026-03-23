@@ -17,11 +17,10 @@ const HeroSection = () => {
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 md:px-8 text-center md:text-left">
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-          Realça a tua <span className="text-brand-pink">beleza natural</span>
+          Micropigmentação e Nanoblading em <span className="text-brand-pink">Setúbal</span>
         </h1>
         <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-xl mx-auto md:mx-0">
-          Especialista em Nanoblading (Fios Realistas), Microblading, Estética
-          Avançada e Tattoo. O teu rosto merece o melhor cuidado.
+          Especialista em Nanoblading, Microblading, Micropigmentação Labial, Soft Eyeliner, Tattoo e Remoção a Laser em Setúbal. Resultados naturais com as melhores técnicas.
         </p>
         <a
           href="https://www.sumupbookings.com/takiuti-studio"

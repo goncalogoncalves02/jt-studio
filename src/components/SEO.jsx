@@ -5,7 +5,7 @@ const SEO = ({ title, description, image, url }) => {
   const { pathname } = useLocation();
   const siteTitle = "JT Studio | Micropigmentação & Estética";
   const defaultDescription =
-    "Realce a sua beleza natural com Microblading, Nanoblading e Estética Avançada no JT Studio em Setúbal. Agende já a sua sessão.";
+    "Micropigmentação, Nanoblading e Estética Avançada no JT Studio em Setúbal. Avaliação 4.9★ no Google. Agende já a sua sessão.";
   const siteUrl = "https://jaquelinetakiutistudio.com";
   const defaultImage = `${siteUrl}/og-image.png`;
   const canonicalUrl = url || `${siteUrl}${pathname === "/" ? "" : pathname}`;
@@ -20,7 +20,7 @@ const SEO = ({ title, description, image, url }) => {
     logo: `${siteUrl}/favicon.png`,
     image: defaultImage,
     description:
-      "Realce a sua beleza natural com Microblading, Nanoblading e Estética Avançada no JT Studio em Setúbal.",
+      "Micropigmentação, Nanoblading e Estética Avançada no JT Studio em Setúbal. Avaliação 4.9★ no Google. Agende já a sua sessão.",
     telephone: "+351962149209",
     address: {
       "@type": "PostalAddress",
@@ -36,9 +36,36 @@ const SEO = ({ title, description, image, url }) => {
     },
     sameAs: ["https://www.instagram.com/jtmicroblading/"],
     priceRange: "€€",
-    areaServed: {
-      "@type": "City",
-      name: "Setúbal",
+    areaServed: [
+      { "@type": "City", name: "Setúbal" },
+      { "@type": "City", name: "Palmela" },
+      { "@type": "City", name: "Azeitão" },
+      { "@type": "City", name: "Sesimbra" },
+      { "@type": "City", name: "Pinhal Novo" },
+    ],
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.9",
+      bestRating: "5",
+      ratingCount: "23",
+    },
+    openingHoursSpecification: {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      opens: "09:00",
+      closes: "20:00",
+    },
+    potentialAction: {
+      "@type": "ReserveAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: "https://www.sumupbookings.com/takiuti-studio",
+        actionPlatform: "http://schema.org/DesktopWebPlatform",
+      },
+      result: {
+        "@type": "Reservation",
+        name: "Agendar sessão",
+      },
     },
   };
 

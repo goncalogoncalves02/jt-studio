@@ -16,10 +16,10 @@ const Gallery = () => {
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
         <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-          Galeria de Resultados
+          Galeria — Micropigmentação e Tattoo em Setúbal
         </h1>
         <p className="text-gray-300 max-w-2xl mx-auto text-lg">
-          Veja alguns dos nossos trabalhos e inspire-se.
+          Resultados reais de nanoblading, micropigmentação labial e tattoo realizados no JT Studio em Setúbal.
         </p>
       </div>
 

@@ -17,11 +17,10 @@ const Contact = () => {
       {/* Header */}
       <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
         <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-          Contacte-nos
+           Contacte-nos
         </h1>
         <p className="text-gray-300 max-w-2xl mx-auto text-lg">
-          Estamos à sua espera para transformar o seu olhar. Agende já a sua
-          visita.
+          Agende a sua sessão de micropigmentação, nanoblading ou tattoo no JT Studio em Setúbal. Funcionamos por marcação.
         </p>
       </div>
 

@@ -21,13 +21,10 @@ const AboutTeaser = () => {
             Olá, sou a Jaqueline Takiuti
           </h2>
           <h3 className="text-xl text-brand-pink font-medium mb-6">
-            Especialista em Nanoblading & Estética
+            Especialista em Nanoblading & Estética em Setúbal
           </h3>
           <p className="text-gray-700 text-lg leading-relaxed mb-6">
-            Com anos de experiência e diversas certificações internacionais,
-            dedico-me a realçar a beleza única de cada cliente. Acredito que a
-            estética deve ser natural, elegante e elevar a autoestima. Cada
-            traço é desenhado com precisão e carinho.
+            Com anos de experiência e diversas certificações internacionais, dedico-me a realçar a beleza única de cada cliente no meu estúdio em Setúbal. Especializada em nanoblading, microblading e micropigmentação labial, recebendo clientes de Palmela, Azeitão, Sesimbra e toda a região. Acredito que a estética deve ser natural, elegante e elevar a autoestima. Cada traço é desenhado com precisão e carinho para resultados hiper-realistas.
           </p>
           <div className="flex flex-wrap justify-center md:justify-start gap-4">
             <span className="bg-white px-4 py-2 rounded-lg shadow-sm text-sm font-semibold text-gray-600 border border-gray-100">
