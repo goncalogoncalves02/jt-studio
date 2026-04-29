@@ -4,48 +4,26 @@ const FAQAccordion = ({ data }) => {
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <div style={{ marginTop: "38px" }}>
+    <div className="mt-[38px]">
       {data.map((item, i) => {
         const isOpen = openIndex === i;
         return (
-          <div key={item.id} style={{ borderTop: "1px solid var(--line)", ...(i === data.length - 1 ? { borderBottom: "1px solid var(--line)" } : {}) }}>
+          <div key={item.id} className={`border-t border-line ${i === data.length - 1 ? "border-b border-line" : ""}`}>
             <button
               onClick={() => setOpenIndex(isOpen ? -1 : i)}
               aria-expanded={isOpen}
-              style={{
-                width: "100%", textAlign: "left",
-                padding: "28px 0",
-                display: "flex", justifyContent: "space-between", alignItems: "center", gap: "30px",
-                background: "none", border: "none", cursor: "pointer",
-                color: isOpen ? "var(--rose)" : "var(--ink)",
-                transition: "color .25s",
-              }}
+              className={`w-full text-left py-7 flex justify-between items-center gap-[30px] bg-transparent border-0 cursor-pointer transition-colors duration-[250ms] ${isOpen ? "text-rose" : "text-ink"}`}
             >
-              <span className="font-serif" style={{ fontSize: "24px", fontWeight: 400, lineHeight: 1.25, letterSpacing: "-0.005em" }}>
+              <span className="font-serif text-[24px] font-normal leading-[1.25] tracking-[-0.005em]">
                 {item.question}
               </span>
-              <span style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: "14px", color: isOpen ? "var(--cream)" : "var(--rose)",
-                width: "36px", height: "36px", borderRadius: "50%",
-                border: "1px solid var(--line)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-                background: isOpen ? "var(--rose)" : "transparent",
-                borderColor: isOpen ? "var(--rose)" : "var(--line)",
-                transform: isOpen ? "rotate(45deg)" : "rotate(0)",
-                transition: "all .3s ease",
-              }}>
+              <span className={`font-mono text-[14px] w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300 ${isOpen ? "bg-rose text-cream border-rose rotate-45" : "bg-transparent text-rose border-line"}`}>
                 +
               </span>
             </button>
 
-            <div style={{
-              maxHeight: isOpen ? "400px" : "0",
-              overflow: "hidden",
-              transition: "max-height .4s ease",
-            }}>
-              <div style={{ padding: "0 0 32px", fontSize: "16px", lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: "560px" }}>
+            <div className={`overflow-hidden transition-[max-height] duration-[400ms] ease-in-out ${isOpen ? "max-h-[400px]" : "max-h-0"}`}>
+              <div className="pb-8 text-[16px] leading-[1.7] text-ink-soft max-w-[560px]">
                 {item.answer}
               </div>
             </div>

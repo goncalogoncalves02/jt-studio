@@ -8,38 +8,31 @@ const creds = [
 ];
 
 const AboutTeaser = () => (
-  <section style={{ padding: "140px 0 120px", background: "var(--cream)", position: "relative" }}>
-    <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 48px" }}
-      className="max-[900px]:!px-[22px]">
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "90px", alignItems: "center" }}
-        className="max-[900px]:!grid-cols-1 max-[900px]:!gap-[50px]">
+  <section className="py-[140px] max-[700px]:py-[70px] bg-cream relative">
+    <div className="max-w-[1440px] mx-auto px-12 max-[900px]:!px-[22px]">
+      <div className="grid grid-cols-[1.1fr_1fr] gap-[90px] items-center max-[900px]:grid-cols-1 max-[900px]:gap-[50px]">
 
         {/* Image */}
-        <div style={{ position: "relative", aspectRatio: "4/5", background: "var(--cream-2)", overflow: "hidden", border: "1px solid var(--line)" }}>
-          <span className="font-mono" style={{
-            position: "absolute", top: "24px", left: "24px",
-            fontSize: "11px", letterSpacing: "0.22em", textTransform: "uppercase",
-            background: "var(--ink)", color: "var(--cream)",
-            padding: "9px 14px", borderRadius: "999px", zIndex: 1,
-          }}>
+        <div className="relative aspect-[4/5] bg-cream-2 overflow-hidden border border-line max-[700px]:max-h-[380px]">
+          <span className="absolute top-6 left-6 font-mono text-[11px] tracking-[0.22em] uppercase bg-ink text-cream py-[9px] px-[14px] rounded-full z-[1]">
             A Artista
           </span>
-          <img src={perfilImg} alt="Jaqueline Takiuti" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={perfilImg} alt="Jaqueline Takiuti" className="w-full h-full object-cover" />
         </div>
 
         {/* Text */}
         <div>
-          <div className="font-mono flex items-center" style={{ gap: "14px", marginBottom: "24px", fontSize: "13px", letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--rose)" }}>
-            <span style={{ width: "30px", height: "1px", background: "var(--rose)", display: "block", flexShrink: 0 }} />
+          <div className="font-mono flex items-center gap-[14px] mb-6 text-[13px] tracking-[0.25em] uppercase text-rose">
+            <span className="w-[30px] h-px bg-rose block shrink-0" />
             Sobre a Jaqueline
           </div>
 
-          <h2 className="font-serif" style={{ fontWeight: 300, fontSize: "clamp(44px,5.8vw,88px)", lineHeight: 0.95, letterSpacing: "-0.025em", margin: 0 }}>
-            Olá, sou a<br /><em style={{ fontStyle: "italic", color: "var(--rose)" }}>Jaqueline Takiuti.</em>
+          <h2 className="font-serif font-light text-[clamp(44px,5.8vw,88px)] leading-[0.95] tracking-[-0.025em] m-0">
+            Olá, sou a<br /><em className="italic text-rose">Jaqueline Takiuti.</em>
           </h2>
 
-          <div style={{ marginTop: "34px", fontSize: "18px", lineHeight: 1.65, color: "var(--ink-soft)", maxWidth: "540px" }}>
-            <p style={{ marginBottom: "18px" }}>
+          <div className="mt-[34px] text-[18px] leading-[1.65] text-ink-soft max-w-[540px]">
+            <p className="mb-[18px]">
               Com anos de experiência e diversas certificações internacionais, dedico-me a realçar a beleza única de cada cliente no meu estúdio em Setúbal.
             </p>
             <p>
@@ -47,13 +40,13 @@ const AboutTeaser = () => (
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginTop: "36px", paddingTop: "32px", borderTop: "1px solid var(--line)" }}>
+          <div className="grid grid-cols-2 gap-[18px] mt-9 pt-8 border-t border-line">
             {creds.map((c) => (
-              <div key={c.label} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <span className="font-mono" style={{ fontSize: "11px", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--muted)" }}>
+              <div key={c.label} className="flex flex-col gap-1.5">
+                <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted">
                   — {c.label}
                 </span>
-                <span className="font-serif" style={{ fontSize: "22px", fontWeight: 400, fontStyle: "italic", color: "var(--ink)" }}>
+                <span className="font-serif text-[22px] font-normal italic text-ink">
                   {c.value}
                 </span>
               </div>

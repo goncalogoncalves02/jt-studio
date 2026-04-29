@@ -11,6 +11,8 @@
   --color-gold: #C9A24A;
   --color-gold-light: #E0C589;
   --color-muted: #6B5E54;
+  --color-line: rgba(20,17,16,0.12);
+  --color-line-light: rgba(244,237,228,0.18);
   --font-serif: 'Fraunces', 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
@@ -40,6 +42,42 @@ html, body {
 
 img { display: block; max-width: 100%; }
 a { color: inherit; }
+
+/* ---- Decorative overlay utilities ---- */
+.grain-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(45deg,rgba(232,217,192,.025) 0 1px,transparent 1px 4px);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.ink-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 70% 30%,rgba(176,38,74,.18),transparent 50%),
+              radial-gradient(ellipse at 20% 80%,rgba(201,162,74,.1),transparent 50%);
+  pointer-events: none;
+}
+
+.hero-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,rgba(20,17,16,.55) 0%,rgba(20,17,16,.35) 40%,rgba(20,17,16,.85) 100%),
+              linear-gradient(90deg,rgba(20,17,16,.5) 0%,transparent 60%);
+}
+
+/* ---- Page header section — responsive padding ---- */
+.page-header-section {
+  padding-top: 180px;
+  padding-bottom: 100px;
+}
+@media (max-width: 700px) {
+  .page-header-section { padding-top: 130px !important; padding-bottom: 60px !important; }
+}
+@media (max-width: 480px) {
+  .page-header-section { padding-top: 110px !important; padding-bottom: 50px !important; }
+}
 
 /* ---- Marquee animation ---- */
 @keyframes marquee-scroll {
@@ -86,6 +124,8 @@ a { color: inherit; }
   .g-tile.gw-6, .g-tile.gw-7, .g-tile.gw-8, .g-tile.gw-9 {
     grid-column: span 1; grid-row: span 1;
   }
+  /* Expand icon always visible on touch */
+  .g-tile > span:last-child { opacity: 0.85 !important; }
 }
 
 /* ---- Services list row ---- */
@@ -130,6 +170,21 @@ a { color: inherit; }
   .svc-row:hover { padding-left: 14px; }
   .svc-row::before { display: none; }
   .svc-row-desc-long, .svc-row-book-col { display: none !important; }
+}
+
+/* ---- Services image strip ---- */
+@media (max-width: 600px) {
+  .svc-image-strip { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ---- Gallery filter bar ---- */
+@media (max-width: 700px) {
+  .gallery-filter-bar { margin-bottom: 32px !important; padding-bottom: 24px !important; }
+}
+
+/* ---- ServiceHighlights card ---- */
+@media (max-width: 700px) {
+  .svc-highlight-card { min-height: 280px !important; }
 }
 
 /* ---- Cookiebot mobile overrides ---- */

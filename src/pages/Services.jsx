@@ -29,7 +29,7 @@ const Services = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--cream)" }}>
+    <div className="min-h-screen bg-cream">
       <SEO
         title="Serviços"
         description="Serviços de Micropigmentação, Nanoblading, Soft Eyeliner, Tattoo e Remoção a Laser em Setúbal. Preços a partir de 10€. Agende no JT Studio."
@@ -39,27 +39,26 @@ const Services = () => {
       </Helmet>
 
       {/* Page Header */}
-      <section style={{ background: "var(--ink)", color: "var(--cream)", padding: "180px 0 100px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at 70% 30%,rgba(176,38,74,.18),transparent 50%),radial-gradient(ellipse at 20% 80%,rgba(201,162,74,.1),transparent 50%)" }} />
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(45deg,rgba(232,217,192,.025) 0 1px,transparent 1px 4px)", mixBlendMode: "overlay", pointerEvents: "none" }} />
-        <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 48px", position: "relative" }}
-          className="max-[700px]:!px-[22px]">
-          <div className="font-mono flex items-center" style={{ gap: "14px", marginBottom: "30px", fontSize: "12px", letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--gold-light)" }}>
-            <span style={{ width: "30px", height: "1px", background: "var(--gold-light)", display: "block", flexShrink: 0 }} />
+      <section className="page-header-section bg-ink text-cream relative overflow-hidden">
+        <div className="ink-gradient-overlay" />
+        <div className="grain-overlay" />
+        <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
+          <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+            <span className="w-[30px] h-px bg-gold-light block shrink-0" />
             Serviços
           </div>
-          <h1 className="font-serif" style={{ fontWeight: 300, fontSize: "clamp(56px,7.5vw,120px)", lineHeight: 0.95, letterSpacing: "-0.03em", maxWidth: "1100px", margin: 0 }}>
+          <h1 className="font-serif font-light text-[clamp(56px,7.5vw,120px)] leading-[0.95] tracking-[-0.03em] max-w-[1100px] m-0">
             Seis técnicas.<br />Um{" "}
-            <em style={{ fontStyle: "italic", color: "var(--gold-light)" }}>resultado natural.</em>
+            <em className="italic text-gold-light">resultado natural.</em>
           </h1>
-          <p style={{ fontSize: "19px", lineHeight: 1.55, color: "rgba(244,237,228,.78)", maxWidth: "640px", marginTop: "30px", fontWeight: 300 }}>
+          <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
             Conheça os serviços de micropigmentação, nanoblading, soft eyeliner, tattoo e remoção a laser disponíveis no JT Studio em Setúbal. Resultados naturais com segurança.
           </p>
-          <div style={{ display: "flex", gap: "40px", marginTop: "48px", paddingTop: "28px", borderTop: "1px solid rgba(232,217,192,.18)", flexWrap: "wrap" }}>
+          <div className="flex gap-[40px] max-[700px]:gap-6 mt-12 pt-7 border-t border-cream/[.18] flex-wrap">
             {[["Especialidades", "06"], ["Por marcação", "SumUp Bookings"], ["Localização", "Setúbal"]].map(([label, value]) => (
-              <div key={label} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <span className="font-mono" style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold-light)" }}>— {label}</span>
-                <span className="font-serif" style={{ fontSize: "22px", fontWeight: 400, fontStyle: "italic", color: "var(--cream)" }}>{value}</span>
+              <div key={label} className="flex flex-col gap-1">
+                <span className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light">— {label}</span>
+                <span className="font-serif text-[22px] font-normal italic text-cream">{value}</span>
               </div>
             ))}
           </div>
@@ -67,10 +66,8 @@ const Services = () => {
       </section>
 
       {/* Services List */}
-      <section style={{ padding: "120px 0", background: "var(--cream)" }}
-        className="max-[700px]:!pt-[60px] max-[700px]:!pb-[70px]">
-        <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 48px" }}
-          className="max-[700px]:!px-[22px]">
+      <section className="py-[120px] bg-cream max-[700px]:!pt-[60px] max-[700px]:!pb-[70px]">
+        <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
           <div className="svc-list">
             {servicesData.map((svc, i) => (
               <a
@@ -79,41 +76,35 @@ const Services = () => {
                 target="_blank" rel="noopener noreferrer"
                 className="svc-row"
               >
-                <span className="font-mono" style={{ fontSize: "14px", letterSpacing: "0.18em", color: "var(--rose)" }}>
+                <span className="font-mono text-[14px] tracking-[0.18em] text-rose">
                   {nums[i]}
                 </span>
-                <div style={{ width: "110px", height: "140px", overflow: "hidden", borderRadius: "6px", background: "var(--cream-2)", position: "relative", flexShrink: 0 }}>
-                  <img src={svc.imageUrl} alt={svc.title} loading="lazy"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform .8s ease" }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"}
-                    onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                <div className="w-[110px] h-[140px] overflow-hidden rounded-[6px] bg-cream-2 relative shrink-0">
+                  <img
+                    src={svc.imageUrl} alt={svc.title} loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-[800ms] ease-in-out hover:scale-[1.08]"
                   />
                 </div>
                 <div>
-                  <div className="font-serif" style={{ fontSize: "32px", fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.1 }}>
-                    <em style={{ fontStyle: "italic", color: "var(--rose)" }}>{svc.nameItalic}</em>{svc.nameRest}
+                  <div className="font-serif text-[32px] font-normal tracking-[-0.015em] leading-[1.1]">
+                    <em className="italic text-rose">{svc.nameItalic}</em>{svc.nameRest}
                   </div>
-                  <div style={{ fontSize: "14.5px", lineHeight: 1.55, color: "var(--muted)", marginTop: "8px" }}>
+                  <div className="text-[14.5px] leading-[1.55] text-muted mt-2">
                     {svc.shortDesc}
                   </div>
                 </div>
-                <div className="svc-row-desc-long" style={{ fontSize: "14.5px", lineHeight: 1.55, color: "var(--muted)" }}>
+                <div className="svc-row-desc-long text-[14.5px] leading-[1.55] text-muted">
                   {svc.description}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <span className="font-serif" style={{ fontSize: "30px", fontStyle: "italic", color: "var(--ink)", fontWeight: 300, letterSpacing: "-0.02em", lineHeight: 1 }}>
+                <div className="flex flex-col gap-2">
+                  <span className="font-serif text-[30px] italic text-ink font-light tracking-[-0.02em] leading-none">
                     {svc.price}
                   </span>
-                  <span className="font-mono" style={{ fontSize: "11px", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--muted)" }}>
+                  <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted">
                     — {svc.duration}
                   </span>
                 </div>
-                <span className="svc-row-book-col font-sans font-semibold uppercase" style={{
-                  textAlign: "center", padding: "16px 24px", borderRadius: "999px",
-                  background: "var(--ink)", color: "var(--cream)",
-                  fontSize: "12px", letterSpacing: "0.15em",
-                  transition: "background .3s",
-                }}>
+                <span className="svc-row-book-col font-sans font-semibold uppercase text-center py-4 px-6 rounded-full bg-ink text-cream text-[12px] tracking-[0.15em] transition-colors duration-300 hover:bg-rose">
                   Agendar
                 </span>
               </a>
@@ -121,21 +112,14 @@ const Services = () => {
           </div>
 
           {/* Image strip */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: "14px", marginTop: "90px" }}
-            className="max-[900px]:![grid-template-columns:repeat(3,1fr)]">
+          <div className="svc-image-strip grid grid-cols-6 gap-[14px] mt-[90px] max-[900px]:grid-cols-3 max-[700px]:mt-[50px] max-[700px]:gap-2">
             {servicesData.map((svc) => (
-              <div key={svc.id} style={{ aspectRatio: "3/4", overflow: "hidden", background: "var(--cream-2)", position: "relative" }}>
-                <img src={svc.imageUrl} alt={svc.stripLabel}
-                  style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform .8s ease" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              <div key={svc.id} className="aspect-[3/4] overflow-hidden bg-cream-2 relative">
+                <img
+                  src={svc.imageUrl} alt={svc.stripLabel}
+                  className="w-full h-full object-cover transition-transform duration-[800ms] ease-in-out hover:scale-[1.06]"
                 />
-                <span className="font-mono" style={{
-                  position: "absolute", bottom: "10px", left: "10px",
-                  fontSize: "10px", letterSpacing: "0.22em", textTransform: "uppercase",
-                  background: "rgba(20,17,16,.85)", color: "var(--cream)",
-                  padding: "6px 10px", borderRadius: "999px",
-                }}>
+                <span className="font-mono absolute bottom-[10px] left-[10px] text-[10px] tracking-[0.22em] uppercase bg-ink/85 text-cream py-[6px] px-[10px] rounded-full">
                   {svc.stripLabel}
                 </span>
               </div>

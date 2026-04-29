@@ -24,7 +24,7 @@ const Info = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--cream)" }}>
+    <div className="min-h-screen bg-cream">
       <SEO
         title="Info & FAQ"
         description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento no JT Studio, Setúbal. Tire todas as suas dúvidas."
@@ -34,69 +34,64 @@ const Info = () => {
       </Helmet>
 
       {/* Page Header */}
-      <section style={{ background: "var(--ink)", color: "var(--cream)", padding: "180px 0 100px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 70% 30%,rgba(176,38,74,.18),transparent 50%),radial-gradient(ellipse at 20% 80%,rgba(201,162,74,.1),transparent 50%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(45deg,rgba(232,217,192,.025) 0 1px,transparent 1px 4px)", mixBlendMode: "overlay", pointerEvents: "none" }} />
-        <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 48px", position: "relative" }}
-          className="max-[700px]:!px-[22px]">
-          <div className="font-mono flex items-center" style={{ gap: "14px", marginBottom: "30px", fontSize: "12px", letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--gold-light)" }}>
-            <span style={{ width: "30px", height: "1px", background: "var(--gold-light)", display: "block", flexShrink: 0 }} />
+      <section className="page-header-section bg-ink text-cream relative overflow-hidden">
+        <div className="ink-gradient-overlay" />
+        <div className="grain-overlay" />
+        <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
+          <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+            <span className="w-[30px] h-px bg-gold-light block shrink-0" />
             Info &amp; FAQ
           </div>
-          <h1 className="font-serif" style={{ fontWeight: 300, fontSize: "clamp(56px,7.5vw,120px)", lineHeight: 0.95, letterSpacing: "-0.03em", margin: 0 }}>
-            As respostas,<br />antes da <em style={{ fontStyle: "italic", color: "var(--gold-light)" }}>pergunta.</em>
+          <h1 className="font-serif font-light text-[clamp(56px,7.5vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+            As respostas,<br />antes da <em className="italic text-gold-light">pergunta.</em>
           </h1>
-          <p style={{ fontSize: "19px", lineHeight: 1.55, color: "rgba(244,237,228,.78)", maxWidth: "640px", marginTop: "30px", fontWeight: 300 }}>
+          <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
             Tire as suas dúvidas sobre micropigmentação, nanoblading e tattoo no JT Studio em Setúbal.
           </p>
         </div>
       </section>
 
       {/* FAQ + Aftercare */}
-      <section style={{ padding: "120px 0", background: "var(--cream)" }}
-        className="max-[900px]:!pt-[60px] max-[900px]:!pb-[70px]">
-        <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 48px" }}
-          className="max-[700px]:!px-[22px]">
-          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "80px", alignItems: "start" }}
-            className="max-[900px]:!grid-cols-1 max-[900px]:!gap-[50px]">
+      <section className="py-[120px] bg-cream max-[900px]:!pt-[60px] max-[900px]:!pb-[70px]">
+        <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
+          <div className="grid grid-cols-[1.1fr_1fr] gap-[80px] items-start max-[900px]:grid-cols-1 max-[900px]:gap-[50px]">
 
             {/* Left: FAQ */}
             <div>
-              <div className="font-mono flex items-center" style={{ gap: "14px", marginBottom: "18px", fontSize: "12px", letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--rose)" }}>
-                <span style={{ width: "30px", height: "1px", background: "var(--rose)", display: "block", flexShrink: 0 }} />
+              <div className="font-mono flex items-center gap-[14px] mb-[18px] text-[12px] tracking-[0.25em] uppercase text-rose">
+                <span className="w-[30px] h-px bg-rose block shrink-0" />
                 Perguntas Frequentes
               </div>
-              <h2 className="font-serif max-[700px]:!text-[42px]" style={{ fontWeight: 300, fontSize: "60px", lineHeight: 0.95, letterSpacing: "-0.025em", margin: 0 }}>
-                Tudo o que pode<br /><em style={{ fontStyle: "italic", color: "var(--rose)" }}>querer saber.</em>
+              <h2 className="font-serif font-light text-[60px] max-[700px]:!text-[42px] leading-[0.95] tracking-[-0.025em] m-0">
+                Tudo o que pode<br /><em className="italic text-rose">querer saber.</em>
               </h2>
               <FAQAccordion data={faqData} />
             </div>
 
             {/* Right: Aftercare sticky */}
-            <aside style={{ background: "var(--ink)", color: "var(--cream)", padding: "46px 42px", position: "sticky", top: "120px" }}
-              className="max-[900px]:!static max-[700px]:!px-[24px] max-[700px]:!py-[32px]">
-              <div className="font-mono flex items-center" style={{ gap: "14px", marginBottom: "18px", fontSize: "12px", letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--gold-light)" }}>
-                <span style={{ width: "30px", height: "1px", background: "var(--gold-light)", display: "block", flexShrink: 0 }} />
+            <aside className="bg-ink text-cream p-[46px_42px] sticky top-[120px] max-[900px]:!static max-[700px]:!px-6 max-[700px]:!py-8">
+              <div className="font-mono flex items-center gap-[14px] mb-[18px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+                <span className="w-[30px] h-px bg-gold-light block shrink-0" />
                 Cuidados pós-procedimento
               </div>
-              <h3 className="font-serif" style={{ fontWeight: 300, fontSize: "42px", lineHeight: 1, letterSpacing: "-0.02em", margin: 0 }}>
-                O que <em style={{ fontStyle: "italic", color: "var(--gold-light)" }}>evitar.</em>
+              <h3 className="font-serif font-light text-[42px] max-[700px]:!text-[32px] leading-none tracking-[-0.02em] m-0">
+                O que <em className="italic text-gold-light">evitar.</em>
               </h3>
-              <div className="font-mono" style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(244,237,228,.6)", margin: "8px 0 30px" }}>
+              <div className="font-mono text-[11px] tracking-[0.2em] uppercase text-cream/60 mt-2 mb-[30px]">
                 — Primeiros 7 a 10 dias
               </div>
-              <ul style={{ display: "flex", flexDirection: "column", gap: "18px", listStyle: "none", margin: 0, padding: 0 }}>
+              <ul className="flex flex-col gap-[18px] list-none m-0 p-0">
                 {aftercareItems.map((item) => (
-                  <li key={item} style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: "14px", alignItems: "start", fontSize: "15px", lineHeight: 1.55, color: "rgba(244,237,228,.85)" }}>
-                    <span style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid var(--rose)", color: "var(--rose)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0, marginTop: "2px" }}>
+                  <li key={item} className="grid grid-cols-[32px_1fr] gap-[14px] items-start text-[15px] leading-[1.55] text-cream/[.85]">
+                    <span className="w-6 h-6 rounded-full border border-rose text-rose flex items-center justify-center text-[12px] shrink-0 mt-0.5">
                       ✕
                     </span>
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <div style={{ marginTop: "32px", padding: "18px 20px", background: "rgba(201,162,74,.1)", borderLeft: "3px solid var(--gold-light)", fontSize: "14px", lineHeight: 1.6, color: "rgba(244,237,228,.9)" }}>
-                <strong style={{ color: "var(--gold-light)" }}>Nota importante.</strong> Siga rigorosamente a aplicação da pomada cicatrizante conforme indicado pela profissional no final da sessão.
+              <div className="mt-8 p-[18px_20px] bg-gold/10 border-l-[3px] border-gold-light text-[14px] leading-[1.6] text-cream/[.9]">
+                <strong className="text-gold-light">Nota importante.</strong> Siga rigorosamente a aplicação da pomada cicatrizante conforme indicado pela profissional no final da sessão.
               </div>
             </aside>
           </div>
