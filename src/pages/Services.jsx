@@ -76,16 +76,16 @@ const Services = () => {
                 target="_blank" rel="noopener noreferrer"
                 className="svc-row"
               >
-                <span className="font-mono text-[14px] tracking-[0.18em] text-rose">
+                <span className="svc-row-num font-mono text-[14px] tracking-[0.18em] text-rose">
                   {nums[i]}
                 </span>
-                <div className="w-[110px] h-[140px] overflow-hidden rounded-[6px] bg-cream-2 relative shrink-0">
+                <div className="svc-row-img w-[110px] h-[140px] overflow-hidden rounded-[6px] bg-cream-2 relative shrink-0">
                   <img
                     src={svc.imageUrl} alt={svc.title} loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-[800ms] ease-in-out hover:scale-[1.08]"
                   />
                 </div>
-                <div>
+                <div className="svc-row-info">
                   <div className="font-serif text-[32px] font-normal tracking-[-0.015em] leading-[1.1]">
                     <em className="italic text-rose">{svc.nameItalic}</em>{svc.nameRest}
                   </div>
@@ -96,7 +96,7 @@ const Services = () => {
                 <div className="svc-row-desc-long text-[14.5px] leading-[1.55] text-muted">
                   {svc.description}
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="svc-row-price flex flex-col gap-2">
                   <span className="font-serif text-[30px] italic text-ink font-light tracking-[-0.02em] leading-none">
                     {svc.price}
                   </span>

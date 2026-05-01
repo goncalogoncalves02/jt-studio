@@ -13,7 +13,7 @@ const AboutTeaser = () => (
       <div className="grid grid-cols-[1.1fr_1fr] gap-[90px] items-center max-[900px]:grid-cols-1 max-[900px]:gap-[50px]">
 
         {/* Image */}
-        <div className="relative aspect-[4/5] bg-cream-2 overflow-hidden border border-line max-[700px]:max-h-[380px]">
+        <div className="relative aspect-[4/5] bg-cream-2 overflow-hidden border border-line max-[700px]:aspect-auto max-[700px]:h-[380px]">
           <span className="absolute top-6 left-6 font-mono text-[11px] tracking-[0.22em] uppercase bg-ink text-cream py-[9px] px-[14px] rounded-full z-[1]">
             A Artista
           </span>

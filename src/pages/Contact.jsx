@@ -77,7 +77,7 @@ const Contact = () => (
               Agende online em 60 segundos pelo SumUp Bookings, ou contacte-nos diretamente — respondemos no mesmo dia.
             </p>
 
-            <div className="grid grid-cols-2 gap-[14px] mt-11 max-[400px]:grid-cols-1">
+            <div className="grid grid-cols-2 gap-[14px] mt-11 max-[500px]:grid-cols-1">
               {contactCards.map((card) => (
                 <ContactCard key={card.label} card={card} />
               ))}
