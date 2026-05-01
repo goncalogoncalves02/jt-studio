@@ -14,7 +14,7 @@ const SocialProof = () => (
           </div>
           <div className="text-gold text-[32px] tracking-[0.08em] mt-[14px]">★★★★★</div>
           <div className="font-mono text-[13px] tracking-[0.2em] uppercase text-muted mt-[14px]">
-            — 23 reviews · estrela completa
+            — +100 reviews · estrela completa
           </div>
         </div>
 

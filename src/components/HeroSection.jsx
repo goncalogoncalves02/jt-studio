@@ -62,7 +62,7 @@ const HeroSection = () => (
               <div className="text-gold text-[15px] tracking-[0.08em]">★★★★★</div>
             </div>
             <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted mt-1">
-              — Google Reviews · 23 avaliações
+              — Google Reviews · +100 avaliações
             </div>
           </div>
 
