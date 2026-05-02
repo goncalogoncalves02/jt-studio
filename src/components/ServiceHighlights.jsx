@@ -52,7 +52,7 @@ const ServiceHighlights = () => (
           <Link
             key={card.index}
             to="/servicos"
-            className="svc-highlight-card relative bg-cream/[.04] border border-cream/[.15] p-[34px_32px_32px] flex flex-col gap-[18px] min-h-[340px] no-underline text-cream hover:bg-cream/[.08] hover:-translate-y-1 hover:border-gold-light transition-all duration-[350ms]"
+            className="svc-highlight-card relative bg-cream/[.04] border border-cream/[.15] p-[34px_36px_32px_20px] overflow-hidden flex flex-col gap-[18px] min-h-[340px] no-underline text-cream hover:bg-cream/[.08] hover:-translate-y-1 hover:border-gold-light transition-all duration-[350ms]"
           >
             <span className="font-mono text-[13px] tracking-[0.2em] text-rose">
               {card.index} <em className="not-italic text-gold-light">{card.indexEm}</em>
