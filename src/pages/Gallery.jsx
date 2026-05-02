@@ -28,7 +28,7 @@ const Gallery = () => {
             <span className="w-[30px] h-px bg-gold-light block shrink-0" />
             Galeria · Portfólio
           </div>
-          <h1 className="font-serif font-light text-[clamp(56px,7.5vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+          <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
             O trabalho,<br />em <em className="italic text-gold-light">close-up.</em>
           </h1>
           <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
@@ -38,7 +38,7 @@ const Gallery = () => {
       </section>
 
       {/* Gallery Section */}
-      <section className="pt-[90px] pb-[120px] bg-ink max-[900px]:!pt-[60px] max-[900px]:!pb-[80px]">
+      <section className="pt-[90px] pb-[120px] bg-ink max-[900px]:!pt-[40px] max-[900px]:!pb-[80px]">
         <div className="max-w-[1640px] mx-auto px-12 max-[700px]:!px-[22px]">
 
           {/* Filters */}
@@ -48,15 +48,12 @@ const Gallery = () => {
                 <button
                   key={f.key}
                   onClick={() => setActiveFilter(f.key)}
-                  className={`font-mono text-[11px] tracking-[0.2em] uppercase py-[11px] px-5 rounded-full border cursor-pointer transition-all duration-[250ms] ${activeFilter === f.key ? "bg-rose border-rose text-cream" : "bg-transparent border-cream/25 text-cream hover:border-cream/60"}`}
+                  className={`font-mono text-[12px] tracking-[0.2em] uppercase py-[14px] px-5 rounded-full border cursor-pointer transition-all duration-[250ms] ${activeFilter === f.key ? "bg-rose border-rose text-cream" : "bg-transparent border-cream/25 text-cream hover:border-cream/60"}`}
                 >
                   {f.label}
                 </button>
               ))}
             </div>
-            <span className="font-mono text-[11px] tracking-[0.2em] uppercase text-cream/60">
-              — {String(visible.length).padStart(2, "0")} trabalhos
-            </span>
           </div>
 
           {/* Masonry grid */}
@@ -68,7 +65,7 @@ const Gallery = () => {
                 onClick={() => setLightboxImage(img)}
               >
                 <img src={img.src} alt={img.alt} loading="lazy" />
-                <span className="font-mono absolute left-[18px] bottom-[18px] right-[18px] text-[10px] tracking-[0.22em] uppercase text-cream z-[2] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-[350ms] ease-in-out">
+                <span className="font-mono absolute left-[12px] bottom-[12px] right-[12px] text-[10px] tracking-[0.22em] uppercase text-cream z-[2] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 max-[900px]:opacity-100 max-[900px]:translate-y-0 transition-all duration-[350ms] ease-in-out">
                   — {img.cap}
                 </span>
                 <span className="absolute top-[14px] right-[14px] w-[34px] h-[34px] rounded-full bg-cream/[.92] text-ink flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[14px] z-[2] pointer-events-none">

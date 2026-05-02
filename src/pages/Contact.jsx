@@ -24,7 +24,7 @@ const CardInner = ({ card }) => (
 );
 
 const ContactCard = ({ card }) => {
-  const base = "p-6 max-[500px]:p-4 border border-line flex flex-col gap-1.5 no-underline text-inherit transition-all duration-300";
+  const base = "p-6 max-[500px]:p-4 border border-line rounded-[14px] overflow-hidden flex flex-col gap-1.5 no-underline text-inherit transition-all duration-300";
   if (card.href) {
     return (
       <a href={card.href} target="_blank" rel="noopener noreferrer" className={`${base} group bg-champagne hover:bg-ink`}>
@@ -55,7 +55,7 @@ const Contact = () => (
           <span className="w-[30px] h-px bg-gold-light block shrink-0" />
           Contactos
         </div>
-        <h1 className="font-serif font-light text-[clamp(56px,7.5vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+        <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
           Marque a<br />sua <em className="italic text-gold-light">visita.</em>
         </h1>
         <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
@@ -65,7 +65,7 @@ const Contact = () => (
     </section>
 
     {/* Contact grid */}
-    <section className="py-[120px] bg-cream max-[900px]:!pt-[60px] max-[900px]:!pb-[70px]">
+    <section className="py-[120px] bg-cream max-[900px]:!pt-[40px] max-[900px]:!pb-[70px]">
       <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
         <div className="grid grid-cols-[1.1fr_1fr] gap-[80px] items-stretch max-[900px]:grid-cols-1 max-[900px]:gap-[40px]">
 
@@ -107,8 +107,8 @@ const Contact = () => (
           </div>
 
           {/* Right: map */}
-          <div className="bg-cream-2 border border-line relative overflow-hidden min-h-[600px] max-[900px]:min-h-[380px] max-[700px]:min-h-[260px] flex flex-col">
-            <div className="flex-1 relative">
+          <div className="bg-cream-2 border border-line relative overflow-hidden min-h-[600px] max-[900px]:min-h-[380px] max-[700px]:min-h-[380px] flex flex-col">
+            <div className="flex-1 relative min-h-[280px]">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d195.0668174828145!2d-8.898165395866998!3d38.53217575333997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd1943a3725116a3%3A0x1ded7669472cf180!2sEstr.%20das%20Machadas%203C%2C%202900-466%20Set%C3%BAbal!5e0!3m2!1spt-PT!2spt!4v1767307877115!5m2!1spt-PT!2spt"
                 title="Mapa de localização do JT Studio em Setúbal"
@@ -125,7 +125,7 @@ const Contact = () => (
               <a
                 href="https://maps.app.goo.gl/5hpuH5kQ1kCkbFqt8"
                 target="_blank" rel="noopener noreferrer"
-                className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light border-b border-gold-light pb-0.5 no-underline hover:text-cream hover:border-cream transition-colors duration-200"
+                className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light border-b border-gold-light pb-0.5 no-underline hover:text-cream hover:border-cream transition-colors duration-200 inline-flex items-center min-h-[44px]"
               >
                 Abrir no Maps →
               </a>

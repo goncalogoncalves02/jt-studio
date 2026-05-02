@@ -26,11 +26,11 @@ const NavBar = () => {
     <>
       <nav className={`fixed top-0 left-0 right-0 z-[100] flex justify-between items-center text-cream transition-all duration-[350ms] max-[700px]:!px-[22px] ${scrolled ? "bg-ink/92 backdrop-blur-[14px] border-b border-cream/[.08] px-12 py-[14px]" : "bg-transparent px-12 py-[18px]"}`}>
 
-        <Link to="/" className="flex items-center gap-[10px] no-underline text-cream">
+        <Link to="/" aria-label="JT Studio — Jaqueline Takiuti" className="flex items-center gap-[10px] no-underline text-cream min-h-[44px] py-[9px]">
           <span className="font-serif text-[26px] font-normal italic leading-none tracking-[0.01em]">
             jaqueline <em className="not-italic text-gold-light">takiuti</em>
           </span>
-          <span className="font-mono text-[11px] tracking-[0.25em] uppercase not-italic text-gold-light border-l border-gold-light/70 pl-[10px] opacity-70 hidden sm:inline">
+          <span aria-hidden="true" className="font-mono text-[11px] tracking-[0.25em] uppercase not-italic text-gold-light border-l border-gold-light/70 pl-[10px] opacity-70 hidden sm:inline">
             JT · STUDIO
           </span>
         </Link>

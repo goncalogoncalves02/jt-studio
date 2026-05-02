@@ -47,7 +47,7 @@ const Services = () => {
             <span className="w-[30px] h-px bg-gold-light block shrink-0" />
             Serviços
           </div>
-          <h1 className="font-serif font-light text-[clamp(56px,7.5vw,120px)] leading-[0.95] tracking-[-0.03em] max-w-[1100px] m-0">
+          <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] max-w-[1100px] m-0">
             Seis técnicas.<br />Um{" "}
             <em className="italic text-gold-light">resultado natural.</em>
           </h1>
@@ -66,7 +66,7 @@ const Services = () => {
       </section>
 
       {/* Services List */}
-      <section className="py-[120px] bg-cream max-[700px]:!pt-[60px] max-[700px]:!pb-[70px]">
+      <section className="py-[120px] bg-cream max-[700px]:!pt-[40px] max-[700px]:!pb-[60px]">
         <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
           <div className="svc-list">
             {servicesData.map((svc, i) => (

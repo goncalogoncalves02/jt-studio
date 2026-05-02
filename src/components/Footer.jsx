@@ -19,7 +19,7 @@ const bookingLinks = [
   { label: "Horário", href: null, value: "Seg — Sáb · 09—20h" },
 ];
 
-const linkCls = "text-[15px] text-cream/80 no-underline block hover:text-gold-light transition-colors duration-[250ms]";
+const linkCls = "text-[15px] text-cream/80 no-underline flex items-center min-h-[44px] hover:text-gold-light transition-colors duration-[250ms]";
 
 const FooterLink = ({ href, to, children }) => {
   if (to) return <Link to={to} className={linkCls}>{children}</Link>;
@@ -36,7 +36,7 @@ const Footer = () => (
 
         {/* Brand */}
         <div>
-          <Link to="/" className="no-underline text-cream">
+          <Link to="/" aria-label="JT Studio — Jaqueline Takiuti" className="no-underline text-cream">
             <div className="font-serif font-light text-[28px] italic leading-[1.1] tracking-[-0.02em] mb-1">
               jaqueline <em className="italic text-gold-light">takiuti</em>
             </div>

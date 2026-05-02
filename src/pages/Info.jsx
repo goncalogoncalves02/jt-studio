@@ -42,7 +42,7 @@ const Info = () => {
             <span className="w-[30px] h-px bg-gold-light block shrink-0" />
             Info &amp; FAQ
           </div>
-          <h1 className="font-serif font-light text-[clamp(56px,7.5vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+          <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
             As respostas,<br />antes da <em className="italic text-gold-light">pergunta.</em>
           </h1>
           <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
@@ -52,7 +52,7 @@ const Info = () => {
       </section>
 
       {/* FAQ + Aftercare */}
-      <section className="py-[120px] bg-cream max-[900px]:!pt-[60px] max-[900px]:!pb-[70px]">
+      <section className="py-[120px] bg-cream max-[900px]:!pt-[40px] max-[900px]:!pb-[70px]">
         <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
           <div className="grid grid-cols-[1.1fr_1fr] gap-[80px] items-start max-[900px]:grid-cols-1 max-[900px]:gap-[50px]">
 
@@ -83,8 +83,8 @@ const Info = () => {
               <ul className="flex flex-col gap-[18px] list-none m-0 p-0">
                 {aftercareItems.map((item) => (
                   <li key={item} className="grid grid-cols-[32px_1fr] gap-[14px] items-start text-[15px] leading-[1.55] text-cream/[.85]">
-                    <span className="w-6 h-6 rounded-full border border-rose text-rose flex items-center justify-center text-[12px] shrink-0 mt-0.5">
-                      ✕
+                    <span className="w-6 h-6 rounded-full bg-rose text-cream flex items-center justify-center text-[11px] shrink-0 mt-0.5 font-mono">
+                      ×
                     </span>
                     <span>{item}</span>
                   </li>

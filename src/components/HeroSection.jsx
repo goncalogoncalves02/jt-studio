@@ -37,7 +37,7 @@ const HeroSection = () => (
             <a
               href="https://www.sumupbookings.com/takiuti-studio"
               target="_blank" rel="noopener noreferrer"
-              className="font-sans font-semibold uppercase text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-cream text-ink hover:bg-rose hover:text-cream transition-all duration-300 no-underline inline-flex items-center gap-2 max-[480px]:w-full max-[480px]:justify-center"
+              className="font-sans font-semibold uppercase text-[15px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-cream text-ink hover:bg-rose hover:text-cream transition-all duration-300 no-underline inline-flex items-center gap-2 max-[480px]:w-full max-[480px]:justify-center"
             >
               Marcar Sessão <span>→</span>
             </a>
@@ -54,7 +54,7 @@ const HeroSection = () => (
         <div className="flex flex-col gap-6 items-end max-[900px]:flex-row max-[900px]:items-stretch max-[900px]:flex-wrap max-[480px]:flex-col max-[480px]:items-stretch">
 
           {/* Rating card */}
-          <div className="bg-cream/95 text-ink p-[22px_26px] rounded-[18px] flex flex-col gap-1 shadow-[0_30px_60px_-20px_rgba(0,0,0,.4)] min-w-[280px] max-[900px]:min-w-0 max-[900px]:flex-1">
+          <div className="bg-champagne/95 text-ink p-[22px_26px] rounded-[18px] flex flex-col gap-1 shadow-[0_30px_60px_-20px_rgba(0,0,0,.4)] min-w-[280px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:mt-[44px]">
             <div className="flex justify-between items-end">
               <div className="font-serif text-[48px] font-light leading-none tracking-[-0.02em]">
                 <em className="italic text-rose">4.9</em>/5

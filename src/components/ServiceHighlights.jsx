@@ -63,7 +63,7 @@ const ServiceHighlights = () => (
             <p className="text-[15px] leading-[1.55] text-cream/70 mt-auto">
               {card.desc}
             </p>
-            <span className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light flex items-center gap-[10px]">
+            <span className="font-mono text-[12px] tracking-[0.2em] uppercase text-gold-light flex items-center gap-[10px] active:underline">
               Saber mais →
             </span>
           </Link>

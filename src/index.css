@@ -72,10 +72,10 @@ img { display: block; max-width: 100%; }
   padding-bottom: 100px;
 }
 @media (max-width: 700px) {
-  .page-header-section { padding-top: 130px !important; padding-bottom: 60px !important; }
+  .page-header-section { padding-top: 110px !important; padding-bottom: 44px !important; }
 }
 @media (max-width: 480px) {
-  .page-header-section { padding-top: 110px !important; padding-bottom: 50px !important; }
+  .page-header-section { padding-top: 96px !important; padding-bottom: 36px !important; }
 }
 
 /* ---- Marquee animation ---- */
@@ -126,6 +126,8 @@ img { display: block; max-width: 100%; }
   }
   /* Expand icon always visible on touch */
   .g-tile > span:last-child { opacity: 0.85 !important; }
+  /* Caption gradient always visible on touch devices */
+  .g-tile::after { opacity: 0.85 !important; }
 }
 
 /* ---- Services list row ---- */
@@ -174,6 +176,7 @@ img { display: block; max-width: 100%; }
   .svc-row-num {
     position: absolute;
     top: 14px; right: 14px;
+    color: rgba(20,17,16,0.35) !important;
   }
   .svc-row-img {
     grid-column: 1; grid-row: 1;
@@ -197,6 +200,9 @@ img { display: block; max-width: 100%; }
 }
 
 /* ---- Services image strip ---- */
+@media (max-width: 700px) {
+  .svc-image-strip { display: none !important; }
+}
 @media (max-width: 600px) {
   .svc-image-strip { grid-template-columns: repeat(2, 1fr) !important; }
 }
