@@ -3,8 +3,8 @@
 @theme {
   --color-ink: #141110;
   --color-ink-soft: #2a2320;
-  --color-cream: #F4EDE4;
-  --color-cream-2: #EFE6D8;
+  --color-cream: #ECE7D7;
+  --color-cream-2: #F2E2DE;
   --color-champagne: #E8D9C0;
   --color-rose: #B0264A;
   --color-rose-deep: #7A1A36;
@@ -20,8 +20,8 @@
 :root {
   --ink: #141110;
   --ink-soft: #2a2320;
-  --cream: #F4EDE4;
-  --cream-2: #EFE6D8;
+  --cream: #ECE7D7;
+  --cream-2: #F2E2DE;
   --champagne: #E8D9C0;
   --rose: #B0264A;
   --rose-deep: #7A1A36;
