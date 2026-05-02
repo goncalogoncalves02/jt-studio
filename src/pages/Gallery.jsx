@@ -12,7 +12,8 @@ const Gallery = () => {
     : galleryImages.filter((img) => img.cat === activeFilter);
 
   return (
-    <div className="min-h-screen bg-ink text-cream">
+    <div className="min-h-screen bg-ink text-cream relative">
+      <div className="ink-gradient-overlay opacity-50" /> 
       <SEO
         title="Galeria"
         description="Galeria de resultados de Nanoblading, Micropigmentação Labial e Tattoo no JT Studio em Setúbal. Fotos reais de antes e depois."
@@ -20,6 +21,7 @@ const Gallery = () => {
 
       {/* Page Header */}
       <section className="page-header-section bg-ink relative overflow-hidden">
+        <div className="ink-gradient-overlay" />  
         <div className="grain-overlay" />
         <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
           <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
