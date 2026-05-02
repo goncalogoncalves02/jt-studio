@@ -103,6 +103,9 @@ const Services = () => {
                   <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted">
                     — {svc.duration}
                   </span>
+                  <span className="hidden max-[1100px]:inline-flex items-center self-center ml-auto shrink-0 font-mono text-[11px] tracking-[0.15em] uppercase py-[9px] px-[16px] rounded-full bg-rose text-cream">
+                    Agendar →
+                  </span>
                 </div>
                 <span className="svc-row-book-col font-sans font-semibold uppercase text-center py-4 px-6 rounded-full bg-ink text-cream text-[12px] tracking-[0.15em] transition-colors duration-300 hover:bg-rose">
                   Agendar

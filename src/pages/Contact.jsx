@@ -12,23 +12,28 @@ const CardInner = ({ card }) => (
     <span className="font-mono text-[11px] tracking-[0.2em] uppercase text-muted group-hover:text-gold-light transition-colors duration-300">
       — {card.label}
     </span>
-    <span className={`font-serif text-[22px] font-normal text-ink group-hover:text-cream whitespace-pre-line transition-colors duration-300 ${card.italic ? "italic" : ""}`}>
+    <span className={`font-serif text-[22px] max-[500px]:text-[17px] font-normal text-ink group-hover:text-cream whitespace-pre-line transition-colors duration-300 ${card.italic ? "italic" : ""}`}>
       {card.value}
     </span>
+    {card.href && (
+      <span className="mt-auto pt-3 font-mono text-[10px] tracking-[0.2em] uppercase text-muted group-hover:text-gold-light transition-colors duration-300">
+        Abrir →
+      </span>
+    )}
   </>
 );
 
 const ContactCard = ({ card }) => {
-  const cls = "group bg-cream-2 p-6 border border-line flex flex-col gap-1.5 no-underline text-inherit hover:bg-ink transition-all duration-300";
+  const base = "p-6 max-[500px]:p-4 border border-line flex flex-col gap-1.5 no-underline text-inherit transition-all duration-300";
   if (card.href) {
     return (
-      <a href={card.href} target="_blank" rel="noopener noreferrer" className={cls}>
+      <a href={card.href} target="_blank" rel="noopener noreferrer" className={`${base} group bg-champagne hover:bg-ink`}>
         <CardInner card={card} />
       </a>
     );
   }
   return (
-    <div className={cls}>
+    <div className={`${base} bg-champagne/60 cursor-default`}>
       <CardInner card={card} />
     </div>
   );
@@ -83,18 +88,18 @@ const Contact = () => (
               ))}
             </div>
 
-            <div className="flex gap-3 mt-8 flex-wrap">
+            <div className="flex gap-3 mt-8 flex-wrap max-[500px]:flex-col">
               <a
                 href="https://www.sumupbookings.com/takiuti-studio"
                 target="_blank" rel="noopener noreferrer"
-                className="font-sans font-semibold uppercase inline-flex items-center gap-2 text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-rose text-cream no-underline hover:bg-ink transition-colors duration-300"
+                className="font-sans font-semibold uppercase inline-flex items-center justify-center gap-2 text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-rose text-cream no-underline hover:bg-ink transition-colors duration-300 max-[500px]:w-full"
               >
                 Agendar Online →
               </a>
               <a
                 href="https://wa.me/351962149209"
                 target="_blank" rel="noopener noreferrer"
-                className="font-sans font-semibold uppercase inline-flex items-center gap-2 text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-ink text-cream no-underline hover:bg-rose transition-colors duration-300"
+                className="font-sans font-semibold uppercase inline-flex items-center justify-center gap-2 text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-ink text-cream no-underline hover:bg-rose transition-colors duration-300 max-[500px]:w-full"
               >
                 WhatsApp
               </a>
