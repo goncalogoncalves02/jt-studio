@@ -35,7 +35,7 @@ const NavBar = () => {
           </span>
         </Link>
 
-        <ul className="hidden md:flex gap-[40px] items-center list-none m-0 p-0">
+        <ul className="hidden lg:flex gap-[40px] items-center list-none m-0 p-0">
           {links.map((link) => (
             <li key={link.to}>
               <Link
@@ -51,14 +51,14 @@ const NavBar = () => {
         <a
           href="https://www.sumupbookings.com/takiuti-studio"
           target="_blank" rel="noopener noreferrer"
-          className="hidden md:flex items-center gap-2 font-sans font-semibold uppercase text-[13px] tracking-[0.1em] py-[13px] px-6 rounded-full bg-rose text-cream no-underline hover:bg-rose-deep transition-colors duration-[250ms]"
+          className="hidden lg:flex items-center gap-2 font-sans font-semibold uppercase text-[13px] tracking-[0.1em] py-[13px] px-6 rounded-full bg-rose text-cream no-underline hover:bg-rose-deep transition-colors duration-[250ms]"
         >
           Marcar <span>→</span>
         </a>
 
         <button
           onClick={() => setDrawerOpen(!drawerOpen)}
-          className="md:hidden flex items-center justify-center w-11 h-11 border border-current rounded-full bg-transparent text-cream cursor-pointer text-[18px]"
+          className="lg:hidden flex items-center justify-center w-11 h-11 border border-current rounded-full bg-transparent text-cream cursor-pointer text-[18px]"
           aria-label={drawerOpen ? "Fechar menu" : "Abrir menu"}
         >
           {drawerOpen ? "✕" : "≡"}
