@@ -51,12 +51,12 @@ const HeroSection = () => (
         </div>
 
         {/* Right column */}
-        <div className="flex flex-col gap-6 items-end max-[900px]:flex-row max-[900px]:items-stretch max-[900px]:flex-wrap max-[480px]:flex-col max-[480px]:items-stretch">
+        <div className="flex flex-col gap-6 items-stretch max-[900px]:flex-row max-[900px]:items-start max-[900px]:flex-wrap max-[480px]:flex-col">
 
           {/* Rating card */}
-          <div className="bg-champagne/95 text-ink p-[22px_26px] rounded-[18px] flex flex-col gap-1 shadow-[0_30px_60px_-20px_rgba(0,0,0,.4)] min-w-[280px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:mt-[44px]">
+          <div className="bg-champagne/95 text-ink p-[22px_26px] rounded-[18px] flex flex-col gap-1 shadow-[0_30px_60px_-20px_rgba(0,0,0,.4)] max-[900px]:flex-1 max-[480px]:p-[16px_20px]">
             <div className="flex justify-between items-end">
-              <div className="font-serif text-[48px] font-light leading-none tracking-[-0.02em]">
+              <div className="font-serif text-[48px] max-[480px]:text-[36px] font-light leading-none tracking-[-0.02em]">
                 <em className="italic text-rose">4.9</em>/5
               </div>
               <div className="text-gold text-[15px] tracking-[0.08em]">★★★★★</div>
@@ -67,7 +67,7 @@ const HeroSection = () => (
           </div>
 
           {/* Stats card */}
-          <div className="bg-ink/55 backdrop-blur-[12px] border border-cream/[.18] p-[20px_26px] rounded-[18px] grid grid-cols-2 gap-6 min-w-[280px] max-[900px]:min-w-0 max-[900px]:flex-1">
+          <div className="bg-ink/55 backdrop-blur-[12px] border border-cream/[.18] p-[20px_26px] rounded-[18px] grid grid-cols-2 gap-6 max-[900px]:flex-1 max-[480px]:p-[16px_20px]">
             <div>
               <div className="font-serif text-[34px] font-light tracking-[-0.02em] text-cream">
                 <em className="italic text-gold-light">+1000</em>
