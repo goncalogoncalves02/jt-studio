@@ -2,6 +2,28 @@ import { useState } from "react";
 import { galleryImages, galFilters, galWidths } from "../data/galleryData";
 import Lightbox from "../components/Lightbox";
 import SEO from "../components/SEO";
+import { Helmet } from "react-helmet-async";
+
+const gallerySchema = {
+  "@context": "https://schema.org",
+  "@type": "ImageGallery",
+  name: "Galeria JT Studio — Micropigmentação e Tattoo em Setúbal",
+  description: "Resultados reais de Nanoblading, Micropigmentação Labial, Shadow e Tattoo realizados no JT Studio em Setúbal.",
+  url: "https://jaquelinetakiutistudio.com/galeria",
+  author: {
+    "@type": "LocalBusiness",
+    name: "Jaqueline Takiuti Studio",
+    url: "https://jaquelinetakiutistudio.com",
+  },
+  image: galleryImages.map((img) => ({
+    "@type": "ImageObject",
+    name: img.cap,
+    description: img.alt,
+    author: { "@type": "LocalBusiness", name: "Jaqueline Takiuti Studio" },
+    copyrightHolder: { "@type": "LocalBusiness", name: "Jaqueline Takiuti Studio" },
+    contentUrl: `https://jaquelinetakiutistudio.com/galeria`,
+  })),
+};
 
 const Gallery = () => {
   const [activeFilter, setActiveFilter] = useState("all");
@@ -18,6 +40,9 @@ const Gallery = () => {
         title="Galeria"
         description="Galeria de resultados de Nanoblading, Micropigmentação Labial e Tattoo no JT Studio em Setúbal. Fotos reais de antes e depois."
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(gallerySchema)}</script>
+      </Helmet>
 
       {/* Page Header */}
       <section className="page-header-section bg-ink relative overflow-hidden">

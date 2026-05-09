@@ -1,4 +1,29 @@
+import { Helmet } from "react-helmet-async";
 import SEO from "../components/SEO";
+
+const contactSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: "Jaqueline Takiuti Studio",
+  url: "https://jaquelinetakiutistudio.com",
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      telephone: "+351962149209",
+      contactType: "customer service",
+      contactOption: "TollFree",
+      areaServed: "PT",
+      availableLanguage: "Portuguese",
+    },
+    {
+      "@type": "ContactPoint",
+      telephone: "+351962149209",
+      contactType: "reservations",
+      areaServed: "PT",
+      availableLanguage: "Portuguese",
+    },
+  ],
+};
 
 const contactCards = [
   { label: "WhatsApp", value: "+351 962 149 209", href: "https://wa.me/351962149209", italic: true },
@@ -45,6 +70,9 @@ const Contact = () => (
       title="Contactos"
       description="Contacte o JT Studio em Setúbal. Morada: Estrada das Machadas nº 3C. Telefone: +351 962 149 209. Agende online."
     />
+    <Helmet>
+      <script type="application/ld+json">{JSON.stringify(contactSchema)}</script>
+    </Helmet>
 
     {/* Page Header */}
     <section className="page-header-section bg-ink text-cream relative overflow-hidden">
