@@ -1,75 +1,124 @@
 import { useState } from "react";
-import { galleryImages } from "../data/galleryData";
+import { galleryImages, galFilters, galWidths } from "../data/galleryData";
 import Lightbox from "../components/Lightbox";
-import { FaInstagram } from "react-icons/fa";
 import SEO from "../components/SEO";
+import { Helmet } from "react-helmet-async";
+
+const gallerySchema = {
+  "@context": "https://schema.org",
+  "@type": "ImageGallery",
+  name: "Galeria JT Studio — Micropigmentação e Tattoo em Setúbal",
+  description: "Resultados reais de Nanoblading, Micropigmentação Labial, Shadow e Tattoo realizados no JT Studio em Setúbal.",
+  url: "https://jaquelinetakiutistudio.com/galeria",
+  author: {
+    "@type": "LocalBusiness",
+    name: "Jaqueline Takiuti Studio",
+    url: "https://jaquelinetakiutistudio.com",
+  },
+  image: galleryImages.map((img) => ({
+    "@type": "ImageObject",
+    name: img.cap,
+    description: img.alt,
+    author: { "@type": "LocalBusiness", name: "Jaqueline Takiuti Studio" },
+    copyrightHolder: { "@type": "LocalBusiness", name: "Jaqueline Takiuti Studio" },
+    contentUrl: `https://jaquelinetakiutistudio.com/galeria`,
+  })),
+};
 
 const Gallery = () => {
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  const visible = activeFilter === "all"
+    ? galleryImages
+    : galleryImages.filter((img) => img.cat === activeFilter);
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-ink text-cream relative">
+      <div className="ink-gradient-overlay opacity-50" /> 
       <SEO
         title="Galeria"
         description="Galeria de resultados de Nanoblading, Micropigmentação Labial e Tattoo no JT Studio em Setúbal. Fotos reais de antes e depois."
       />
-      {/* Header */}
-      <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-          Galeria — Micropigmentação e Tattoo em Setúbal
-        </h1>
-        <p className="text-gray-300 max-w-2xl mx-auto text-lg">
-          Resultados reais de nanoblading, micropigmentação labial e tattoo realizados no JT Studio em Setúbal.
-        </p>
-      </div>
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(gallerySchema)}</script>
+      </Helmet>
 
-      <div className="container mx-auto px-4 mt-12">
-        {/* Mobile: Horizontal Scroll (Snap) */}
-        {/* Desktop: Masonry-like Grid */}
-        <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory pb-6 md:pb-0">
-          {galleryImages.map((image) => (
-            <div
-              key={image.id}
-              className="min-w-[80vw] md:min-w-0 snap-center cursor-pointer group relative overflow-hidden rounded-xl shadow-md hover:shadow-xl transition-all duration-300"
-              onClick={() => setSelectedImage(image)}
-            >
-              <div className="aspect-3/4 md:h-96 md:aspect-auto">
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-              </div>
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <span className="text-white font-semibold bg-brand-pink/80 px-4 py-2 rounded-full">
-                  Ver Zoom
+      {/* Page Header */}
+      <section className="page-header-section bg-ink relative overflow-hidden">
+        <div className="ink-gradient-overlay" />  
+        <div className="grain-overlay" />
+        <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
+          <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+            <span className="w-[30px] h-px bg-gold-light block shrink-0" />
+            Galeria · Portfólio
+          </div>
+          <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+            O trabalho,<br />em <em className="italic text-gold-light">close-up.</em>
+          </h1>
+          <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
+            Resultados reais de nanoblading, micropigmentação labial e tattoo realizados no JT Studio em Setúbal.
+          </p>
+        </div>
+      </section>
+
+      {/* Gallery Section */}
+      <section className="pt-[90px] pb-[120px] bg-ink max-[900px]:!pt-[40px] max-[900px]:!pb-[80px]">
+        <div className="max-w-[1640px] mx-auto px-12 max-[700px]:!px-[22px]">
+
+          {/* Filters */}
+          <div className="gallery-filter-bar flex gap-[10px] flex-wrap mb-[50px] pb-[40px] border-b border-cream/[.12] items-center justify-between">
+            <div className="flex gap-[10px] flex-wrap">
+              {galFilters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setActiveFilter(f.key)}
+                  className={`font-mono text-[12px] tracking-[0.2em] uppercase py-[14px] px-5 rounded-full border cursor-pointer transition-all duration-[250ms] ${activeFilter === f.key ? "bg-rose border-rose text-cream" : "bg-transparent border-cream/25 text-cream hover:border-cream/60"}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Masonry grid */}
+          <div className="gallery-grid">
+            {galleryImages.map((img, i) => (
+              <div
+                key={img.id}
+                className={`g-tile group ${galWidths[i]} ${visible.includes(img) ? "" : "hidden"}`}
+                onClick={() => setLightboxImage(img)}
+              >
+                <img src={img.src} alt={img.alt} loading="lazy" />
+                <span className="font-mono absolute left-[12px] bottom-[12px] right-[12px] text-[10px] tracking-[0.22em] uppercase text-cream z-[2] opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 max-[900px]:opacity-100 max-[900px]:translate-y-0 transition-all duration-[350ms] ease-in-out">
+                  — {img.cap}
+                </span>
+                <span className="absolute top-[14px] right-[14px] w-[34px] h-[34px] rounded-full bg-cream/[.92] text-ink flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[14px] z-[2] pointer-events-none">
+                  ⤢
                 </span>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Instagram CTA */}
-        <div className="mt-16 text-center">
-          <a
-            href="https://www.instagram.com/jtmicroblading/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-linear-to-r from-purple-500 via-brand-pink to-orange-400 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
-          >
-            <FaInstagram className="text-2xl" />
-            Siga-nos no Instagram
-          </a>
+          {/* Instagram CTA */}
+          <div className="mt-[80px] pt-[60px] border-t border-cream/[.15] flex justify-between items-center flex-wrap gap-[30px] max-[700px]:flex-col max-[700px]:items-start max-[700px]:gap-[18px] max-[700px]:mt-[50px] max-[700px]:pt-[36px]">
+            <h3 className="font-serif font-light text-[clamp(30px,4vw,48px)] tracking-[-0.02em] m-0">
+              Mais trabalhos no{" "}
+              <em className="italic text-gold-light">Instagram.</em>
+            </h3>
+            <a
+              href="https://www.instagram.com/jtmicroblading/"
+              target="_blank" rel="noopener noreferrer"
+              className="font-sans font-semibold uppercase inline-flex items-center gap-3 bg-rose text-cream py-[18px] px-8 rounded-full text-[13px] tracking-[0.12em] no-underline hover:bg-cream hover:text-ink transition-all duration-300"
+            >
+              @jtmicroblading →
+            </a>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Lightbox Modal */}
-      {selectedImage && (
-        <Lightbox
-          image={selectedImage}
-          onClose={() => setSelectedImage(null)}
-        />
+      {lightboxImage && (
+        <Lightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       )}
     </div>
   );

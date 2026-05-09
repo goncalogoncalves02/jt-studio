@@ -1,8 +1,16 @@
 import { Helmet } from "react-helmet-async";
 import FAQAccordion from "../components/FAQAccordion";
 import { faqData } from "../data/faqData";
-import { FiCheckCircle, FiInfo } from "react-icons/fi";
 import SEO from "../components/SEO";
+
+const aftercareItems = [
+  "Não molhar a área tratada durante as primeiras 24 horas.",
+  "Evitar exposição direta ao sol ou solário (usar chapéu/boné).",
+  "Não arrancar ou coçar as crostas que se formam na cicatrização.",
+  "Evitar sauna, piscina, jacuzzi ou banhos de mar.",
+  "Não usar maquilhagem, cremes ácidos ou esfoliantes na área.",
+  "Evitar transpirar excessivamente (ginásio intenso).",
+];
 
 const Info = () => {
   const faqSchema = {
@@ -11,90 +19,84 @@ const Info = () => {
     mainEntity: faqData.map((item) => ({
       "@type": "Question",
       name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
-      },
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
     })),
   };
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-cream">
       <SEO
         title="Info & FAQ"
         description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento no JT Studio, Setúbal. Tire todas as suas dúvidas."
       />
       <Helmet>
-        <script type="application/ld+json">
-          {JSON.stringify(faqSchema)}
-        </script>
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
-      {/* Header */}
-      <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-          Perguntas Frequentes — Micropigmentação
-        </h1>
-        <p className="text-gray-300 max-w-2xl mx-auto text-lg">
-          Tire as suas dúvidas sobre micropigmentação, nanoblading e tattoo no JT Studio em Setúbal.
-        </p>
-      </div>
 
-      <div className="container mx-auto px-4 mt-12 grid grid-cols-1 lg:grid-cols-2 gap-16">
-        {/* Lado Esquerdo: FAQ */}
-        <div>
-          <div className="flex items-center gap-3 mb-8">
-            <FiInfo className="text-3xl text-brand-pink" />
-            <h2 className="text-2xl font-bold text-brand-dark">
-              Perguntas Frequentes (FAQ)
-            </h2>
+      {/* Page Header */}
+      <section className="page-header-section bg-ink text-cream relative overflow-hidden">
+        <div className="ink-gradient-overlay" />
+        <div className="grain-overlay" />
+        <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
+          <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+            <span className="w-[30px] h-px bg-gold-light block shrink-0" />
+            Info &amp; FAQ
           </div>
-          <FAQAccordion data={faqData} />
+          <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+            As respostas,<br />antes da <em className="italic text-gold-light">pergunta.</em>
+          </h1>
+          <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
+            Tire as suas dúvidas sobre micropigmentação, nanoblading e tattoo no JT Studio em Setúbal.
+          </p>
         </div>
+      </section>
 
-        {/* Lado Direito: Cuidados Pós-Procedimento */}
-        <div>
-          <div className="flex items-center gap-3 mb-8">
-            <FiCheckCircle className="text-3xl text-brand-pink" />
-            <h2 className="text-2xl font-bold text-brand-dark">
-              Cuidados Pós-Procedimento
-            </h2>
-          </div>
+      {/* FAQ + Aftercare */}
+      <section className="py-[120px] bg-cream max-[900px]:!pt-[40px] max-[900px]:!pb-[70px]">
+        <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
+          <div className="grid grid-cols-[1.1fr_1fr] gap-[80px] items-start max-[900px]:grid-cols-1 max-[900px]:gap-[50px]">
 
-          <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="text-xl font-semibold text-brand-dark mb-6 border-b border-gray-200 pb-4">
-              O que <span className="text-brand-pink">EVITAR</span> nos
-              primeiros 7-10 dias:
-            </h3>
-
-            <ul className="space-y-4">
-              {[
-                "Não molhar a área tratada durante as primeiras 24 horas.",
-                "Evitar exposição direta ao sol ou solário (usar chapéu/boné).",
-                "Não arrancar ou coçar as crostas que se formam na cicatrização.",
-                "Evitar sauna, piscina, jacuzzi ou banhos de mar.",
-                "Não usar maquilhagem, cremes ácidos ou esfoliantes na área.",
-                "Evitar transpirar excessivamente (ginásio intenso).",
-              ].map((item, index) => (
-                <li key={index} className="flex items-start gap-4">
-                  <div className="min-w-6 min-h-6 flex items-center justify-center bg-brand-light-pink rounded-full mt-1">
-                    <span className="text-brand-pink text-sm font-bold">✕</span>
-                  </div>
-                  <span className="text-gray-700 leading-relaxed">{item}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-8 bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
-              <FiInfo className="text-blue-500 text-xl mt-1 shrink-0" />
-              <p className="text-sm text-blue-800">
-                <strong>Nota Importante:</strong> Siga rigorosamente a aplicação
-                da pomada cicatrizante conforme indicado pela profissional no
-                final da sessão.
-              </p>
+            {/* Left: FAQ */}
+            <div>
+              <div className="font-mono flex items-center gap-[14px] mb-[18px] text-[12px] tracking-[0.25em] uppercase text-rose">
+                <span className="w-[30px] h-px bg-rose block shrink-0" />
+                Perguntas Frequentes
+              </div>
+              <h2 className="font-serif font-light text-[60px] max-[700px]:!text-[42px] leading-[0.95] tracking-[-0.025em] m-0">
+                Tudo o que pode<br /><em className="italic text-rose">querer saber.</em>
+              </h2>
+              <FAQAccordion data={faqData} />
             </div>
+
+            {/* Right: Aftercare sticky */}
+            <aside className="bg-ink text-cream p-[46px_42px] sticky top-[120px] max-[900px]:!static max-[700px]:!px-6 max-[700px]:!py-8">
+              <div className="font-mono flex items-center gap-[14px] mb-[18px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+                <span className="w-[30px] h-px bg-gold-light block shrink-0" />
+                Cuidados pós-procedimento
+              </div>
+              <h3 className="font-serif font-light text-[42px] max-[700px]:!text-[32px] leading-none tracking-[-0.02em] m-0">
+                O que <em className="italic text-gold-light">evitar.</em>
+              </h3>
+              <div className="font-mono text-[11px] tracking-[0.2em] uppercase text-cream/60 mt-2 mb-[30px]">
+                — Primeiros 7 a 10 dias
+              </div>
+              <ul className="flex flex-col gap-[18px] list-none m-0 p-0">
+                {aftercareItems.map((item) => (
+                  <li key={item} className="grid grid-cols-[32px_1fr] gap-[14px] items-start text-[15px] leading-[1.55] text-cream/[.85]">
+                    <span className="w-6 h-6 rounded-full bg-rose text-cream flex items-center justify-center text-[11px] shrink-0 mt-0.5 font-mono">
+                      ×
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8 p-[18px_20px] bg-gold/10 border-l-[3px] border-gold-light text-[14px] leading-[1.6] text-cream/[.9]">
+                <strong className="text-gold-light">Nota importante.</strong> Siga rigorosamente a aplicação da pomada cicatrizante conforme indicado pela profissional no final da sessão.
+              </div>
+            </aside>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

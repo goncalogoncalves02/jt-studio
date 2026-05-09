@@ -47,7 +47,7 @@ const SEO = ({ title, description, image, url }) => {
       "@type": "AggregateRating",
       ratingValue: "4.9",
       bestRating: "5",
-      ratingCount: "23",
+      ratingCount: 100,
     },
     openingHoursSpecification: {
       "@type": "OpeningHoursSpecification",

@@ -1,6 +1,5 @@
 import { Helmet } from "react-helmet-async";
 import { servicesData } from "../data/servicesData";
-import ServiceCard from "../components/ServiceCard";
 import SEO from "../components/SEO";
 
 const Services = () => {
@@ -13,11 +12,8 @@ const Services = () => {
       item: {
         "@type": "Service",
         name: service.title,
-        description: service.description,
-        provider: {
-          "@type": "BeautySalon",
-          name: "JT Studio",
-        },
+        description: service.shortDesc,
+        provider: { "@type": "BeautySalon", name: "JT Studio" },
         areaServed: "Setúbal, Portugal",
         ...(service.price !== "Sob consulta" && {
           offers: {
@@ -31,34 +27,107 @@ const Services = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-cream">
       <SEO
         title="Serviços"
         description="Serviços de Micropigmentação, Nanoblading, Soft Eyeliner, Tattoo e Remoção a Laser em Setúbal. Preços a partir de 10€. Agende no JT Studio."
       />
       <Helmet>
-        <script type="application/ld+json">
-          {JSON.stringify(servicesSchema)}
-        </script>
+        <script type="application/ld+json">{JSON.stringify(servicesSchema)}</script>
       </Helmet>
-      {/* Page Header */}
-      <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-          Serviços de Micropigmentação e Tattoo em Setúbal
-        </h1>
-        <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-          Conheça os serviços de micropigmentação, nanoblading, soft eyeliner, tattoo e remoção a laser disponíveis no JT Studio em Setúbal. Resultados naturais com segurança.
-        </p>
-      </div>
 
-      {/* Services Grid */}
-      <div className="container mx-auto px-4 mt-8 md:mt-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {servicesData.map((service) => (
-            <ServiceCard key={service.id} service={service} />
-          ))}
+      {/* Page Header */}
+      <section className="page-header-section bg-ink text-cream relative overflow-hidden">
+        <div className="ink-gradient-overlay" />
+        <div className="grain-overlay" />
+        <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
+          <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+            <span className="w-[30px] h-px bg-gold-light block shrink-0" />
+            Serviços
+          </div>
+          <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] max-w-[1100px] m-0">
+            Seis técnicas.<br />Um{" "}
+            <em className="italic text-gold-light">resultado natural.</em>
+          </h1>
+          <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
+            Conheça os serviços de micropigmentação, nanoblading, soft eyeliner, tattoo e remoção a laser disponíveis no JT Studio em Setúbal. Resultados naturais com segurança.
+          </p>
+          <div className="flex gap-[40px] max-[700px]:gap-6 mt-12 pt-7 border-t border-cream/[.18] flex-wrap">
+            {[["Especialidades", "06"], ["Por marcação", "SumUp Bookings"], ["Localização", "Setúbal"]].map(([label, value]) => (
+              <div key={label} className="flex flex-col gap-1">
+                <span className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light">— {label}</span>
+                <span className="font-serif text-[22px] font-normal italic text-cream">{value}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Services List */}
+      <section className="py-[120px] bg-cream max-[700px]:!pt-[40px] max-[700px]:!pb-[60px]">
+        <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
+          <div className="svc-list">
+            {servicesData.map((svc, i) => (
+              <a
+                key={svc.id}
+                href={svc.bookingUrl}
+                target="_blank" rel="noopener noreferrer"
+                className="svc-row"
+              >
+                <span className="svc-row-num font-mono text-[14px] tracking-[0.18em] text-rose">
+                  {(i + 1).toString().padStart(2, "0")}
+                </span>
+                <div className="svc-row-img w-[110px] h-[140px] overflow-hidden rounded-[6px] bg-cream-2 relative shrink-0">
+                  <img
+                    src={svc.imageUrl} alt={svc.title} loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-[800ms] ease-in-out hover:scale-[1.08]"
+                  />
+                </div>
+                <div className="svc-row-info">
+                  <div className="font-serif text-[32px] max-[700px]:text-[19px] font-normal tracking-[-0.015em] leading-[1.1]">
+                    <em className="italic text-rose">{svc.nameItalic}</em>{svc.nameRest}
+                  </div>
+                  <div className="text-[14.5px] leading-[1.55] text-muted mt-2">
+                    {svc.shortDesc}
+                  </div>
+                </div>
+                <div className="svc-row-desc-long text-[14.5px] leading-[1.55] text-muted">
+                  {svc.description}
+                </div>
+                <div className="svc-row-price flex flex-col gap-2">
+                  <span className="font-serif text-[30px] italic text-ink font-light tracking-[-0.02em] leading-none">
+                    {svc.price}
+                  </span>
+                  <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted">
+                    — {svc.duration}
+                  </span>
+                  <span className="hidden max-[1100px]:inline-flex items-center self-center ml-auto shrink-0 font-mono text-[11px] tracking-[0.15em] uppercase py-[9px] px-[16px] rounded-full bg-rose text-cream">
+                    Agendar →
+                  </span>
+                </div>
+                <span className="svc-row-book-col font-sans font-semibold uppercase text-center py-4 px-6 rounded-full bg-ink text-cream text-[12px] tracking-[0.15em] transition-colors duration-300 hover:bg-rose">
+                  Agendar
+                </span>
+              </a>
+            ))}
+          </div>
+
+          {/* Image strip */}
+          <div className="svc-image-strip grid grid-cols-6 gap-[14px] mt-[90px] max-[900px]:grid-cols-3 max-[700px]:mt-[50px] max-[700px]:gap-2">
+            {servicesData.map((svc) => (
+              <div key={svc.id} className="aspect-[3/4] overflow-hidden bg-cream-2 relative">
+                <img
+                  src={svc.imageUrl} alt={svc.stripLabel}
+                  className="w-full h-full object-cover transition-transform duration-[800ms] ease-in-out hover:scale-[1.06]"
+                />
+                <span className="font-mono absolute bottom-[10px] left-[10px] text-[10px] tracking-[0.22em] uppercase bg-ink/85 text-cream py-[6px] px-[10px] rounded-full">
+                  {svc.stripLabel}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

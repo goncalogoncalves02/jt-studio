@@ -1,86 +1,94 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { FiMenu, FiX } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 
 const NavBar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { pathname } = useLocation();
 
-  const navLinks = [
-    { name: "Home", path: "/" },
-    { name: "Serviços", path: "/servicos" },
-    { name: "Info & FAQ", path: "/info" },
-    { name: "Galeria", path: "/galeria" },
-    { name: "Contactos", path: "/contactos" },
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
+  const links = [
+    { label: "Início", to: "/" },
+    { label: "Serviços", to: "/servicos" },
+    { label: "Galeria", to: "/galeria" },
+    { label: "Info & FAQ", to: "/info" },
+    { label: "Contactos", to: "/contactos" },
   ];
 
   return (
-    <nav className="bg-brand-dark text-white shadow-md fixed w-full z-50">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        {/* Logo */}
-        <Link
-          to="/"
-          className="text-2xl font-bold text-brand-pink tracking-wider"
-        >
-          JT<span className="text-white">Studio</span>
+    <>
+      <nav className={`fixed top-0 left-0 right-0 z-[100] flex justify-between items-center text-cream transition-all duration-[350ms] max-[700px]:!px-[22px] ${scrolled ? "bg-ink/92 backdrop-blur-[14px] border-b border-cream/[.08] px-12 py-[14px]" : "bg-transparent px-12 py-[18px]"}`}>
+
+        <Link to="/" aria-label="JT Studio — Jaqueline Takiuti" className="flex items-center gap-[10px] no-underline text-cream min-h-[44px] py-[9px]">
+          <span className="font-serif text-[26px] font-normal italic leading-none tracking-[0.01em]">
+            jaqueline <em className="not-italic text-gold-light">takiuti</em>
+          </span>
+          <span aria-hidden="true" className="font-mono text-[11px] tracking-[0.25em] uppercase not-italic text-gold-light border-l border-gold-light/70 pl-[10px] opacity-70 hidden sm:inline">
+            JT · STUDIO
+          </span>
         </Link>
 
-        {/* Desktop Menu */}
-        <div className="hidden md:flex items-center space-x-8">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              to={link.path}
-              className="hover:text-brand-pink transition-colors duration-300 font-medium"
-            >
-              {link.name}
-            </Link>
+        <ul className="hidden lg:flex gap-[40px] items-center list-none m-0 p-0">
+          {links.map((link) => (
+            <li key={link.to}>
+              <Link
+                to={link.to}
+                className={`text-[14px] font-medium tracking-[0.02em] no-underline pb-px border-b transition-[border-color] duration-200 ${pathname === link.to ? "border-gold-light text-cream" : "border-transparent text-cream/80 hover:text-cream"}`}
+              >
+                {link.label}
+              </Link>
+            </li>
           ))}
-          <a
-            href="https://www.sumupbookings.com/takiuti-studio"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-brand-pink text-white px-6 py-2 rounded-full hover:bg-opacity-90 transition-all shadow-lg hover:shadow-brand-pink/20 font-semibold cursor-pointer"
-          >
-            Marcar
-          </a>
-        </div>
+        </ul>
 
-        {/* Mobile Toggle */}
-        <button
-          className="md:hidden text-2xl text-brand-pink focus:outline-none"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label={isOpen ? "Fechar menu de navegação" : "Abrir menu de navegação"}
-          aria-expanded={isOpen}
-          aria-controls="mobile-nav-menu"
+        <a
+          href="https://www.sumupbookings.com/takiuti-studio"
+          target="_blank" rel="noopener noreferrer"
+          className="hidden lg:flex items-center gap-2 font-sans font-semibold uppercase text-[13px] tracking-[0.1em] py-[13px] px-6 rounded-full bg-rose text-cream no-underline hover:bg-rose-deep transition-colors duration-[250ms]"
         >
-          {isOpen ? <FiX /> : <FiMenu />}
-        </button>
-      </div>
+          Marcar <span>→</span>
+        </a>
 
-      {/* Mobile Drawer */}
-      {isOpen && (
-        <div id="mobile-nav-menu" className="md:hidden absolute top-full left-0 w-full bg-brand-dark border-t border-gray-800 flex flex-col items-center py-6 space-y-6 animate-fade-in shadow-xl">
-          {navLinks.map((link) => (
+        <button
+          onClick={() => setDrawerOpen(!drawerOpen)}
+          className="lg:hidden flex items-center justify-center w-11 h-11 border border-current rounded-full bg-transparent text-cream cursor-pointer text-[18px]"
+          aria-label={drawerOpen ? "Fechar menu" : "Abrir menu"}
+        >
+          {drawerOpen ? "✕" : "≡"}
+        </button>
+      </nav>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-ink text-cream pt-[90px] px-8 pb-10">
+          {links.map((link) => (
             <Link
-              key={link.name}
-              to={link.path}
-              className="text-lg hover:text-brand-pink transition-colors"
-              onClick={() => setIsOpen(false)}
+              key={link.to}
+              to={link.to}
+              className="font-serif text-[42px] font-light py-[18px] border-b border-cream/[.12] no-underline text-cream hover:text-gold-light tracking-[-0.015em] transition-colors duration-200"
             >
-              {link.name}
+              {link.to === "/servicos" || link.to === "/contactos"
+                ? <em className="italic text-gold-light">{link.label}</em>
+                : link.label}
             </Link>
           ))}
           <a
             href="https://www.sumupbookings.com/takiuti-studio"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-brand-pink text-white px-8 py-3 rounded-full hover:bg-opacity-90 transition-all font-semibold w-3/4 text-center"
+            target="_blank" rel="noopener noreferrer"
+            className="font-sans font-semibold uppercase text-[13px] tracking-[0.1em] mt-8 self-start inline-flex items-center gap-2 py-[16px] px-7 rounded-full bg-rose text-cream no-underline hover:bg-rose-deep transition-colors duration-[250ms]"
           >
-            Marcar
+            Marcar →
           </a>
         </div>
       )}
-    </nav>
+    </>
   );
 };
 
