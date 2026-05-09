@@ -16,7 +16,7 @@ const Lightbox = ({ image, onClose }) => {
       className="fixed inset-0 z-[200] bg-ink/95 flex items-center justify-center p-10"
     >
       <button
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
         aria-label="Fechar"
         className="absolute top-6 right-6 w-12 h-12 rounded-full bg-cream text-ink border-0 cursor-pointer flex items-center justify-center text-[18px] hover:bg-gold-light transition-colors duration-200"
       >

@@ -2,8 +2,6 @@ import { Helmet } from "react-helmet-async";
 import { servicesData } from "../data/servicesData";
 import SEO from "../components/SEO";
 
-const nums = ["01", "02", "03", "04", "05", "06"];
-
 const Services = () => {
   const servicesSchema = {
     "@context": "https://schema.org",
@@ -77,7 +75,7 @@ const Services = () => {
                 className="svc-row"
               >
                 <span className="svc-row-num font-mono text-[14px] tracking-[0.18em] text-rose">
-                  {nums[i]}
+                  {(i + 1).toString().padStart(2, "0")}
                 </span>
                 <div className="svc-row-img w-[110px] h-[140px] overflow-hidden rounded-[6px] bg-cream-2 relative shrink-0">
                   <img
