@@ -110,7 +110,7 @@ const SEO = ({ title, description, image, url }) => {
 
       {/* Localização e Autor */}
       <meta name="author" content="Jaqueline Takiuti Studio" />
-      <meta name="geo.region" content="PT-SE" />
+      <meta name="geo.region" content="PT-15" />
       <meta name="geo.placename" content="Setúbal" />
       <meta name="geo.position" content="38.532176;-8.898165" />
       <meta name="ICBM" content="38.532176, -8.898165" />
