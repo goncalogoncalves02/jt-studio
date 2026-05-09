@@ -1,29 +1,40 @@
-import { FiX } from "react-icons/fi";
+import { useEffect } from "react";
 
 const Lightbox = ({ image, onClose }) => {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   if (!image) return null;
 
   return (
     <div
-      className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 animate-fade-in"
+      role="dialog" aria-modal="true"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={image.alt}
+      className="fixed inset-0 z-[200] bg-ink/95 flex items-center justify-center p-10"
     >
       <button
-        className="absolute top-4 right-4 text-white text-4xl focus:outline-none hover:text-brand-pink transition-colors"
-        onClick={onClose}
-        aria-label="Fechar imagem ampliada"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        aria-label="Fechar"
+        className="absolute top-6 right-6 w-12 h-12 rounded-full bg-cream text-ink border-0 cursor-pointer flex items-center justify-center text-[18px] hover:bg-gold-light transition-colors duration-200"
       >
-        <FiX />
+        ✕
       </button>
+
       <img
         src={image.src}
         alt={image.alt}
-        className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-        onClick={(e) => e.stopPropagation()} // Prevent close when clicking image
+        onClick={(e) => e.stopPropagation()}
+        className="max-w-[92vw] max-h-[88vh] object-contain"
       />
+
+      {image.cap && (
+        <div className="absolute bottom-7 left-1/2 -translate-x-1/2 font-mono text-[12px] tracking-[0.2em] uppercase text-gold-light bg-ink/60 py-[10px] px-[18px] rounded-full border border-cream/20 whitespace-nowrap">
+          {image.cap}
+        </div>
+      )}
     </div>
   );
 };

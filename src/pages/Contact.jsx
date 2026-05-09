@@ -1,127 +1,168 @@
-import {
-  FaWhatsapp,
-  FaInstagram,
-  FaEnvelope,
-  FaPhoneAlt,
-  FaMapMarkerAlt,
-} from "react-icons/fa";
+import { Helmet } from "react-helmet-async";
 import SEO from "../components/SEO";
 
-const Contact = () => {
+const contactSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: "Jaqueline Takiuti Studio",
+  url: "https://jaquelinetakiutistudio.com",
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      telephone: "+351962149209",
+      contactType: "customer service",
+      contactOption: "TollFree",
+      areaServed: "PT",
+      availableLanguage: "Portuguese",
+    },
+    {
+      "@type": "ContactPoint",
+      telephone: "+351962149209",
+      contactType: "reservations",
+      areaServed: "PT",
+      availableLanguage: "Portuguese",
+    },
+  ],
+};
+
+const contactCards = [
+  { label: "WhatsApp", value: "+351 962 149 209", href: "https://wa.me/351962149209", italic: true },
+  { label: "Instagram", value: "@jtmicroblading", href: "https://www.instagram.com/jtmicroblading/", italic: true },
+  { label: "Morada", value: "Estrada das Machadas,\nnº 3C, 2900-466 Setúbal", href: "https://maps.app.goo.gl/5hpuH5kQ1kCkbFqt8", italic: false },
+  { label: "Horário", value: "Seg — Sáb · 09—20h", href: null, italic: true },
+];
+
+const CardInner = ({ card }) => (
+  <>
+    <span className="font-mono text-[11px] tracking-[0.2em] uppercase text-muted group-hover:text-gold-light transition-colors duration-300">
+      — {card.label}
+    </span>
+    <span className={`font-serif text-[22px] max-[500px]:text-[17px] font-normal text-ink group-hover:text-cream whitespace-pre-line transition-colors duration-300 ${card.italic ? "italic" : ""}`}>
+      {card.value}
+    </span>
+    {card.href && (
+      <span className="mt-auto pt-3 font-mono text-[10px] tracking-[0.2em] uppercase text-muted group-hover:text-gold-light transition-colors duration-300">
+        Abrir →
+      </span>
+    )}
+  </>
+);
+
+const ContactCard = ({ card }) => {
+  const base = "p-6 max-[500px]:p-4 border border-line rounded-[14px] overflow-hidden flex flex-col gap-1.5 no-underline text-inherit transition-all duration-300";
+  if (card.href) {
+    return (
+      <a href={card.href} target="_blank" rel="noopener noreferrer" className={`${base} group bg-champagne hover:bg-ink`}>
+        <CardInner card={card} />
+      </a>
+    );
+  }
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <SEO
-        title="Contactos"
-        description="Contacte o JT Studio em Setúbal. Morada: Estrada das Machadas nº 3C. Telefone: +351 962 149 209. Agende online."
-      />
-      {/* Header */}
-      <div className="bg-brand-dark text-white py-16 md:py-24 pb-8 text-center px-4">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 mt-4">
-           Contacte-nos
+    <div className={`${base} bg-champagne/60 cursor-default`}>
+      <CardInner card={card} />
+    </div>
+  );
+};
+
+const Contact = () => (
+  <div className="min-h-screen bg-cream">
+    <SEO
+      title="Contactos"
+      description="Contacte o JT Studio em Setúbal. Morada: Estrada das Machadas nº 3C. Telefone: +351 962 149 209. Agende online."
+    />
+    <Helmet>
+      <script type="application/ld+json">{JSON.stringify(contactSchema)}</script>
+    </Helmet>
+
+    {/* Page Header */}
+    <section className="page-header-section bg-ink text-cream relative overflow-hidden">
+      <div className="ink-gradient-overlay" />
+      <div className="grain-overlay" />
+      <div className="max-w-[1440px] mx-auto px-12 relative max-[700px]:!px-[22px]">
+        <div className="font-mono flex items-center gap-[14px] mb-[30px] text-[12px] tracking-[0.25em] uppercase text-gold-light">
+          <span className="w-[30px] h-px bg-gold-light block shrink-0" />
+          Contactos
+        </div>
+        <h1 className="font-serif font-light text-[clamp(44px,7vw,120px)] leading-[0.95] tracking-[-0.03em] m-0">
+          Marque a<br />sua <em className="italic text-gold-light">visita.</em>
         </h1>
-        <p className="text-gray-300 max-w-2xl mx-auto text-lg">
+        <p className="text-[19px] max-[700px]:text-[16px] leading-[1.55] text-cream/[.78] max-w-[640px] mt-[30px] font-light">
           Agende a sua sessão de micropigmentação, nanoblading ou tattoo no JT Studio em Setúbal. Funcionamos por marcação.
         </p>
       </div>
+    </section>
 
-      <div className="container mx-auto px-4 mt-8 md:mt-12">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
-          {/* Info Side */}
-          <div className="w-full md:w-1/2 p-8 md:p-12">
-            <h2 className="text-2xl font-bold text-brand-dark mb-8">
-              Informações de Contacto
+    {/* Contact grid */}
+    <section className="py-[120px] bg-cream max-[900px]:!pt-[40px] max-[900px]:!pb-[70px]">
+      <div className="max-w-[1440px] mx-auto px-12 max-[700px]:!px-[22px]">
+        <div className="grid grid-cols-[1.1fr_1fr] gap-[80px] items-stretch max-[900px]:grid-cols-1 max-[900px]:gap-[40px]">
+
+          {/* Left: info */}
+          <div>
+            <div className="font-mono flex items-center gap-[14px] mb-[18px] text-[12px] tracking-[0.25em] uppercase text-rose">
+              <span className="w-[30px] h-px bg-rose block shrink-0" />
+              Estamos à sua espera
+            </div>
+            <h2 className="font-serif font-light text-[clamp(46px,6vw,88px)] leading-[0.92] tracking-[-0.03em] m-0">
+              Falar consigo<br /><em className="italic text-rose">é fácil.</em>
             </h2>
+            <p className="text-[18px] max-[700px]:text-[16px] leading-[1.6] text-ink-soft mt-6 max-w-[480px]">
+              Agende online em 60 segundos pelo SumUp Bookings, ou contacte-nos diretamente — respondemos no mesmo dia.
+            </p>
 
-            <div className="space-y-8">
-              <div className="flex items-start gap-4">
-                <div className="bg-brand-light-pink/30 p-3 rounded-full">
-                  <FaWhatsapp className="text-2xl text-brand-pink" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">WhatsApp</h3>
-                  <a
-                    href="https://wa.me/351962149209"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-600 hover:text-brand-pink transition-colors"
-                  >
-                    +351 962 149 209
-                  </a>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Resposta rápida garantida.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="bg-brand-light-pink/30 p-3 rounded-full">
-                  <FaInstagram className="text-2xl text-brand-pink" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Instagram</h3>
-                  <a
-                    href="https://www.instagram.com/jtmicroblading/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-600 hover:text-brand-pink transition-colors"
-                  >
-                    @jtmicroblading
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="bg-brand-light-pink/30 p-3 rounded-full">
-                  <FaMapMarkerAlt className="text-2xl text-brand-pink" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Morada</h3>
-                  <a
-                    href="https://maps.app.goo.gl/5hpuH5kQ1kCkbFqt8"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-600 hover:text-brand-pink transition-colors"
-                  >
-                    <p className="text-gray-600">
-                      Estrada das Machadas, n° 3C
-                      <br />
-                      2900-466 Setúbal, Portugal
-                    </p>
-                  </a>
-                </div>
-              </div>
+            <div className="grid grid-cols-2 gap-[14px] mt-11 max-[500px]:grid-cols-1">
+              {contactCards.map((card) => (
+                <ContactCard key={card.label} card={card} />
+              ))}
             </div>
 
-            <div className="mt-10">
+            <div className="flex gap-3 mt-8 flex-wrap max-[500px]:flex-col">
               <a
                 href="https://www.sumupbookings.com/takiuti-studio"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center bg-brand-dark text-white font-bold py-4 rounded-xl hover:bg-brand-pink transition-colors duration-300 shadow-lg"
+                target="_blank" rel="noopener noreferrer"
+                className="font-sans font-semibold uppercase inline-flex items-center justify-center gap-2 text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-rose text-cream no-underline hover:bg-ink transition-colors duration-300 max-[500px]:w-full"
               >
-                Agendar Online
+                Agendar Online →
+              </a>
+              <a
+                href="https://wa.me/351962149209"
+                target="_blank" rel="noopener noreferrer"
+                className="font-sans font-semibold uppercase inline-flex items-center justify-center gap-2 text-[13px] tracking-[0.12em] py-[18px] px-8 rounded-full bg-ink text-cream no-underline hover:bg-rose transition-colors duration-300 max-[500px]:w-full"
+              >
+                WhatsApp
               </a>
             </div>
           </div>
 
-          {/* Map Side */}
-          <div className="w-full md:w-1/2 min-h-[400px] md:min-h-auto relative bg-gray-200">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d195.0668174828145!2d-8.898165395866998!3d38.53217575333997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd1943a3725116a3%3A0x1ded7669472cf180!2sEstr.%20das%20Machadas%203C%2C%202900-466%20Set%C3%BAbal!5e0!3m2!1spt-PT!2spt!4v1767307877115!5m2!1spt-PT!2spt"
-              title="Mapa de localização do JT Studio em Setúbal"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="absolute inset-0"
-            ></iframe>
+          {/* Right: map */}
+          <div className="bg-cream-2 border border-line relative overflow-hidden min-h-[600px] max-[900px]:min-h-[380px] max-[700px]:min-h-[380px] flex flex-col">
+            <div className="flex-1 relative min-h-[280px]">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d195.0668174828145!2d-8.898165395866998!3d38.53217575333997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd1943a3725116a3%3A0x1ded7669472cf180!2sEstr.%20das%20Machadas%203C%2C%202900-466%20Set%C3%BAbal!5e0!3m2!1spt-PT!2spt!4v1767307877115!5m2!1spt-PT!2spt"
+                title="Mapa de localização do JT Studio em Setúbal"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 w-full h-full border-0"
+              />
+            </div>
+            <div className="p-[22px_26px] bg-ink text-cream flex justify-between items-center flex-wrap gap-[14px]">
+              <div>
+                <div className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light">— JT Studio</div>
+                <div className="font-serif text-[18px] italic">Estrada das Machadas, nº 3C</div>
+              </div>
+              <a
+                href="https://maps.app.goo.gl/5hpuH5kQ1kCkbFqt8"
+                target="_blank" rel="noopener noreferrer"
+                className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold-light border-b border-gold-light pb-0.5 no-underline hover:text-cream hover:border-cream transition-colors duration-200 inline-flex items-center min-h-[44px]"
+              >
+                Abrir no Maps →
+              </a>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    </section>
+  </div>
+);
 
 export default Contact;
