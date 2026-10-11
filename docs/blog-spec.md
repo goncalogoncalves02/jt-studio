@@ -2,10 +2,11 @@
 
 Última revisão: 2026-10-11.
 
-**Estado:** desenho discutido e aprovado por secções; esta revisão escrita aguarda
-leitura e aprovação do utilizador. A feature ainda não está implementada. A aprovação
-deste documento permite preparar o plano de implementação; não equivale à aprovação
-da execução, integração ou publicação em produção.
+**Estado:** revisão escrita aprovada pelo utilizador em 2026-10-11. A feature ainda
+não está implementada. O [plano de implementação](superpowers/plans/2026-10-11-blog-editorial.md)
+está preparado e aguarda revisão do utilizador. A aprovação desta spec permite
+preparar esse plano; não equivale à aprovação da execução, integração ou publicação
+em produção.
 
 Esta revisão substitui a proposta de 2026-09-15 do branch
 `claude/awesome-hamilton-xizq67`. Conserva o objetivo de gerar HTML estático indexável,
