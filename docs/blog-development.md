@@ -24,6 +24,9 @@ static documents for `/`, `/servicos`, `/info`, `/galeria`, and `/contactos`. It
 writes directory-index aliases for the four non-home routes with a trailing slash.
 Both URL forms render matching route trees and use the no-slash canonical. Task 8
 must add confirmed-release sourcing before the production build can publish the blog.
+`vite.config.js` remains unchanged because its existing React SWC and Tailwind plugins
+are used by both builds; `build-blog.mjs` supplies the independent output directories,
+root, base path, and SSR entry through Vite's per-build options.
 
 ## Verification commands
 
@@ -32,7 +35,8 @@ Run these from the repository root with Node 24.21.0:
 - `npm run lint` — ESLint. The pre-existing baseline has one `react-hooks/set-state-in-effect` error in `src/components/NavBar.jsx:16`.
 - `npm run build` — existing production build; remains independent of fixture data.
 - `npm run build:fixture` — explicit synthetic-release client/SSR rendering proof.
-- `node --test tests/unit/render-html.test.mjs` — metadata, script-safe bootstrap serialization, and raw HTML for all five existing routes. Run after `npm run build:fixture`.
+- `npm run test:unit` — metadata, script-safe bootstrap serialization, and raw HTML for all five existing routes. Requires a successful `npm run build:fixture` immediately beforehand.
+- `npm run test:legacy` — confirms that the legacy Vite output still contains its original raw metadata and BeautySalon JSON-LD. Run after `npm run build`.
 - `node scripts/check-public-artifacts.mjs` — route metadata, structured data, hydration payload, and local asset checks. Run after `npm run build:fixture`.
 - `npm run test:browser -- tests/browser/existing-pages.spec.js` — Chromium hydration, navigation, console errors, and missing assets. The Playwright web server builds the explicit fixture first.
 

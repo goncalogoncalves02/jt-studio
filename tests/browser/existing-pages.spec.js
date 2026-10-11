@@ -64,6 +64,8 @@ test('five existing routes prerender, hydrate with slash variants, and keep navi
     const canonicalPath = effectivePath.replace(/\/+$/, '') || '/';
     const expectedCanonical = `https://jaquelinetakiutistudio.com${canonicalPath === '/' ? '' : canonicalPath}`;
     expect(prerenderedCanonical).toBe(expectedCanonical);
+    await expect(page.locator('head title')).toHaveCount(1);
+    await expect(page.locator('meta[name="description"]')).toHaveCount(1);
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', expectedCanonical);
     await expect(page.locator('main')).toHaveAttribute('class', prerenderedMainClass ?? '');

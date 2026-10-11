@@ -26,7 +26,9 @@ function attr(node, name) {
 test('render_html_keeps_assets_and_moves_metadata_to_head', () => {
   const file = path.join(output, 'index.html');
   assert.ok(existsSync(file), 'build output should exist before inspecting rendered HTML');
-  const document = parse(readFileSync(file, 'utf8'));
+  const html = readFileSync(file, 'utf8');
+  assert.equal((html.match(/<!doctype html>/gi) ?? []).length, 1, 'composed HTML must have one doctype');
+  const document = parse(html);
   const head = walk(document, (node) => node.tagName === 'head')[0];
   const titles = walk(head, (node) => node.tagName === 'title');
   const descriptions = walk(head, (node) => node.tagName === 'meta' && attr(node, 'name') === 'description');

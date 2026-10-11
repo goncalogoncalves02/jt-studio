@@ -79,5 +79,5 @@ export function composeHtml(template, markup, pageData) {
   bootstrap.parentNode = body;
   bootstrap.childNodes[0].parentNode = bootstrap;
 
-  return `<!doctype html>${serialize(document)}`;
+  return serialize(document);
 }

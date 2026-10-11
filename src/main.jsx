@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import './index.css';
 import App from './App.jsx';
-import { PublicDataProvider } from './blog/PublicDataContext.jsx';
+import { PublicDataProvider } from './blog/PublicDataProvider.jsx';
 
 const rootElement = document.getElementById('root');
 const bootstrap = document.getElementById('public-page-data');
