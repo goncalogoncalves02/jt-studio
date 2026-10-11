@@ -21,5 +21,20 @@ const application = (
   </StrictMode>
 );
 
-if (rootElement?.dataset.prerendered === 'true') hydrateRoot(rootElement, application);
-else createRoot(rootElement).render(application);
+function removeLegacyTemplateMetadata() {
+  document.head.querySelectorAll('title, meta[name="description"], meta[name="theme-color"]').forEach((node) => node.remove());
+  document.head.querySelectorAll('script[type="application/ld+json"]').forEach((node) => {
+    try {
+      if (JSON.parse(node.textContent)['@type'] === 'BeautySalon') node.remove();
+    } catch {
+      // Keep unrelated or invalid JSON-LD untouched.
+    }
+  });
+}
+
+if (rootElement?.dataset.prerendered === 'true') {
+  hydrateRoot(rootElement, application);
+} else {
+  removeLegacyTemplateMetadata();
+  createRoot(rootElement).render(application);
+}

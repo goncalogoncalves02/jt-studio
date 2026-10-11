@@ -10,7 +10,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm run build:fixture && npm exec -- vite preview --outDir dist/fixture/site --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'npm run build && npm run build:fixture && npm exec -- vite preview --outDir dist/fixture/site --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 120_000,
