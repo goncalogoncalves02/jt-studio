@@ -19,6 +19,7 @@ const allowedTests = new Map([
   ['editorial-inputs', 'tests/db/editorial-inputs.sql'],
   ['guard-mutations', 'tests/db/guard-mutations.sql'],
   ['publication', 'tests/db/publication.sql'],
+  ['storage', 'tests/db/storage.sql'],
 ]);
 
 function fail(stage) {
@@ -42,6 +43,8 @@ async function captureTransactionalTestState(client) {
         from blog_private.releases) as releases,
       (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(id::text, ',' order by id), '')))
         from public.blog_posts) as posts,
+      (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(id, ',' order by id), '')))
+        from public.blog_media) as media,
       (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(session_id::text, ',' order by session_id), '')))
         from blog_private.admin_sessions) as sessions,
       (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(request_id::text, ',' order by request_id), '')))

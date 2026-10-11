@@ -7,6 +7,7 @@ import { once } from 'node:events';
 
 const MAX_CREATE_BODY_BYTES = 16 * 1024 * 1024;
 const CREATE_PATH = /^(?:\/v[0-9]+\.[0-9]+)?\/containers\/create\/?$/;
+const VOLUME_CREATE_PATH = /^(?:\/v[0-9]+\.[0-9]+)?\/volumes\/create\/?$/;
 const UPGRADE_PATH = /^(?:\/v[0-9]+\.[0-9]+)?\/(?:exec\/[a-zA-Z0-9_.-]+\/start|containers\/[a-zA-Z0-9_.-]+\/attach)\/?$/;
 const CONTAINER_START_PATH = /^(?:\/v[0-9]+\.[0-9]+)?\/containers\/([0-9a-f]{64})\/start\/?$/;
 
@@ -84,6 +85,9 @@ export function createDockerLoopbackProxy({
   verifiedContainerIds = new Set(),
   verifiedContainerNameIds = new Map(),
   resumableContainerIds = new Set(),
+  allowCreatedContainerStarts = false,
+  createRequestGuard,
+  volumeCreateGuard,
   onUpgradeEvent = () => {},
   onDeleteEvent = () => {},
 }) {
@@ -121,9 +125,11 @@ export function createDockerLoopbackProxy({
     }
 
     const create = clientReq.method === 'POST' && isContainerCreate(parsed.pathname);
+    const volumeCreate = clientReq.method === 'POST' && VOLUME_CREATE_PATH.test(parsed.pathname);
     const startRoute = clientReq.method === 'POST' && /^(?:\/v[0-9]+\.[0-9]+)?\/containers\/[^/]+\/start\/?$/.test(parsed.pathname);
     const startMatch = startRoute && CONTAINER_START_PATH.exec(parsed.pathname);
-    if (startRoute && (!startMatch || !resumableContainerIds.has(startMatch[1]))) {
+    if (startRoute && (!startMatch || (!resumableContainerIds.has(startMatch[1])
+        && !(allowCreatedContainerStarts && createdContainers.has(startMatch[1]))))) {
       clientReq.resume();
       sendError(clientRes, 403, 'Container start is restricted to verified task containers');
       return;
@@ -135,17 +141,32 @@ export function createDockerLoopbackProxy({
     }
     let body;
     let headers = { ...clientReq.headers };
-    if (create) {
-      const names = parsed.searchParams.getAll('name');
-      if (names.length !== 1 || !allowedNames.has(names[0])) {
-        clientReq.resume();
-        sendError(clientRes, 403, 'Container creation is restricted to this task project');
-        return;
-      }
+    if (create || volumeCreate) {
       try {
         const rawBody = await readRequestBody(clientReq);
+        let document;
+        try { document = JSON.parse(rawBody.toString('utf8')); }
+        catch { throw new TypeError('Invalid Docker create JSON'); }
+        if (!document || typeof document !== 'object' || Array.isArray(document)) throw new TypeError('Invalid Docker create JSON');
+        if (create) {
+          const names = parsed.searchParams.getAll('name');
+          if (names.length !== 1 || !allowedNames.has(names[0])) {
+            clientReq.resume();
+            sendError(clientRes, 403, 'Container creation is restricted to this task project');
+            return;
+          }
+          if (createRequestGuard && createRequestGuard(names[0], document) !== true) {
+            clientReq.resume();
+            sendError(clientRes, 403, 'Container create request is outside this task runtime specification');
+            return;
+          }
+        } else if (volumeCreateGuard && volumeCreateGuard(document) !== true) {
+          clientReq.resume();
+          sendError(clientRes, 403, 'Volume creation is outside this task runtime specification');
+          return;
+        }
         enforceCreateBoundary(rawBody);
-        body = rewriteBindings(rawBody);
+        body = create ? rewriteBindings(rawBody) : rawBody;
       } catch (error) {
         if (error.message === 'Forbidden Docker host exposure mode') {
           sendError(clientRes, 403, 'Container host exposure is outside this task runtime boundary');
@@ -225,6 +246,7 @@ export function createDockerLoopbackProxy({
               const result = JSON.parse(responseBody.toString('utf8'));
               if (typeof result.Id === 'string') {
                 createdContainers.add(result.Id);
+                if (allowCreatedContainerStarts && resumableContainerIds instanceof Set) resumableContainerIds.add(result.Id);
               }
             } catch { /* Invalid daemon create responses cannot seed delete ownership. */ }
           }

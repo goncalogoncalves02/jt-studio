@@ -100,6 +100,101 @@ Auth stays available for Task 4. Never bind-mount host or `/tmp` paths into Dock
 Desktop containers. Record exact container IDs, network ID, generated project ID,
 bound ports, and CLI output.
 
+Task 5 keeps `storage-api` excluded from the Supabase CLI lifecycle: the pinned
+CLI's Storage spec omits a user and cgroup limits, and the pinned upstream Storage
+image has no default `USER`. Do not run it through `supabase start` or as root. The
+Task 5 runner accepts only `supabase/storage-api:v1.79.36` at linux/amd64 digest
+`sha256:a68a0da4ab90eea4ce0bac36a2b855a162c8f3c03973615c6795995448f7d154` and
+the exact existing task bridge ID. Before the first image pull or Engine create,
+compare full protected container IDs and all volume names with the saved Task 3
+inventory, and verify the exact four Task 3 container IDs, bridge ID/options,
+loopback listeners, and current free space. The only new volume name allowed is
+`supabase_storage_jt-studio-blog-tests`, created with labels
+`org.jt-studio.project=jt-studio-blog-tests` and
+`org.jt-studio.task=blog-editorial-task5`; on a fresh runtime, if it already
+exists, fail closed and preserve it. The Storage service is created only through
+the Task 5 Docker request guard: `User=1000:1000`, one CPU, 768 MiB memory with
+swap capped to 768 MiB,
+`PidsLimit=256`, `CapDrop=ALL`, `no-new-privileges`, read-only root filesystem,
+and a 64 MiB `/tmp` tmpfs owned by UID/GID 1000. It mounts only that task-owned
+volume at `/mnt`, uses the bridge's `storage` alias, and publishes no host ports.
+Its process UID/GID and every limit are re-read after start; health must pass on
+the internal port 5000. The healthcheck runs the image's Node 24 directly and
+requires a successful `/status` response within a 1.5-second abort window; it
+does not depend on shell or wget options. Failure of any check stops Task 5
+before serving requests.
+
+The new volume initially has a root-owned, empty mountpoint. A single finite
+initializer container is allowed only after the volume was proven absent from the
+pre-create inventory and the new volume's exact name, driver, and labels were
+verified. It uses the same image with no network, no published ports, no secrets,
+one CPU, 128 MiB memory and equal swap, and only `CAP_CHOWN`. Its fixed command
+checks that `/etc/passwd` maps `node` to UID/GID 1000 and that `/mnt` is an empty,
+root-owned directory; it changes ownership of `/mnt` itself only, never recursively.
+Both newly created volume mounts set Docker Engine `VolumeOptions.NoCopy=true`;
+the create proxy rejects a missing or false value. This prevents a later container
+create from copying the image mountpoint metadata back over the initialized volume.
+The initializer must exit successfully before Storage starts. Keep its stopped
+container and the volume for diagnosis; no `--rm`, volume removal, prune, or GC is
+permitted. If the volume exists already, is non-empty, or has unexpected ownership,
+fail closed without changing it. Do not add write permissions to other paths to
+work around a read-only-root failure; demonstrate any required temporary path and
+bound it before a reviewed change.
+
+The first reviewed Task 5 run created a pinned volume and two containers, then the
+service exited with `EACCES` on `/mnt/stub`. For this one known partial run, the
+coordinator-approved `node scripts/supabase-storage-local.mjs resume` path may
+resume only the original full IDs recorded in the ignored runtime state:
+initializer `fc07c13392c9b099a44ac67f3d175dd87980513a907596b62c71fd01774417bc`
+and service `64db731c94b829cd30427a0b30630e5979e17f15d157d297ac13d7fe0a5910e1`.
+Before each start it compares the complete protected and task inventories, exact
+names/labels/image digest/network/volume, state and runtime limits. The stopped
+service's complete `HostConfig`/`NetworkSettings` must point only at the task
+bridge; the initializer must have `NetworkMode=none` and exactly Docker's
+`Networks` key `none`. While Storage is stopped, the bridge endpoint inventory
+must contain exactly the four Task 3 IDs; after Storage is healthy, it must
+contain those four IDs plus the exact Storage service ID. It derives the service
+environment from current task config and local Supabase status, merges the pinned
+image defaults, and compares both containers' actual environment in memory
+without logging, hashing, or persisting values. It also reads the raw `/mnt`
+archive to require one empty root-owned directory before
+the initializer. It starts that exact
+finite initializer, then reads the archive again and requires an empty UID/GID
+1000:1000 directory before starting the existing service. It creates no resources
+and performs no database or Storage writes. The old containers predate the
+NoCopy fix, so their inspected mount option may be absent or false only for those
+two exact IDs; new Engine creates must still carry `NoCopy=true`. Source review of
+the pinned Moby v29.8.0 implementation confirms volume population happens during
+container creation, not Start. If any identity, inventory, empty-directory,
+ownership, or health check fails, stop and preserve the current resources and
+runtime state. Keep the resume lock and all evidence; never retry by recreating,
+deleting, pruning, or weakening container limits. If the same recovery has already
+started the service but its final local verification was interrupted, use only
+`node scripts/supabase-storage-local.mjs verify-existing`. That read-only path
+requires the exact saved IDs and resume lock, validates the complete protected
+inventory/config/environment/network/runtime state and actual non-root process,
+and does not require the mount to remain empty after Storage creates its `stub`
+directory. It performs no lifecycle or Storage/DB writes; never rerun `resume` on
+an already-running service.
+
+Task 5 creates private `blog-drafts` and public `blog-public` buckets, each limited
+to WebP and 1 MiB. The private Storage policies require the configured editor,
+an unexpired application session mapped to the JWT `session_id`, and the matching
+live `auth.sessions` row. The BFF never returns Auth JWTs or signed private URLs.
+It uploads the largest Task 2 variant first; the trusted recorder fixes that
+master's dimensions and expected width set in the private schema, then accepts only
+matching smaller variants. A missing/failed variant cannot complete the group.
+Completion and preview revalidate the originally captured app/provider session;
+preview repeats that check after the physical Storage download. Public promotion
+is an internal server operation gated by references in the latest confirmed
+release, never a browser route.
+
+Generate the Task 5 migration name with the pinned Supabase CLI before applying it.
+Do not use `supabase start` to add Storage to the existing partial stack; use only
+the Task 5 scoped runtime runner and the normal migration command after its exact
+resource checks pass. Preserve every created Storage resource and uploaded object
+on failure for review; no media cleanup or garbage collection is part of this task.
+
 The Task 3 daemon check found the Docker Desktop overlay at 46/47 GiB used with no
 free blocks; Postgres `initdb` therefore failed with `No space left on device`.
 After verifying that no container referenced it, the user approved removal of
@@ -116,13 +211,17 @@ removed the task-owned DB container and then attempted a separate volume delete;
 the local proxy blocked that request, leaving the task volume intact. The runner
 has three separate lifecycle commands: `provision` invokes pinned CLI `start`
 only when no container with this project label exists; `resume` validates the
-complete existing stack and starts only the four recorded full container IDs;
+complete Task 3 stack and starts only the four recorded full container IDs; the
+Task 5 Storage extension is separately guarded and does not invoke CLI startup;
 `migrate` applies pending migrations to a ready local database. Normal test runs
 must not provision or reset their database. Resume fails closed for partial
 stacks, changed IDs, labels, bridge, ports, mounts, protected inventories, or
 unexpected listeners. It starts DB, verifies PostgreSQL 17 health, then resumes
 Auth, PostgREST, and Kong and checks local Auth/PostgREST readiness. Resume does
-not create or remove containers, networks, or volumes.
+not create or remove containers, networks, or volumes. Storage resume/start may
+operate only on the exact Task 5 container and volume after validating their full
+IDs, task labels, pinned image, runtime UID, security settings, mounts, and health;
+it never touches the four Task 3 IDs or any protected resource.
 
 The migration action verifies the exact project, DB container labels and loopback
 binding, CLI version, and local DB URL; it never accepts a linked project or an

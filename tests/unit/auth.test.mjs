@@ -65,6 +65,24 @@ test('admin mutation requires the exact configured Origin and a matching CSRF to
   assert.throws(() => assertCsrfRequest(request('https://editor.example.test', validToken, 'text/plain'), 'https://editor.example.test', validToken));
 });
 
+test('raw WebP mutations are allowed only on the exact server-owned upload route', async () => {
+  const { requireAdmin } = await import('../../server/blog/auth.mjs');
+  const config = { supabaseUrl: 'http://127.0.0.1:54341', anonKey: 'anon-key-for-test', encryptionKey: key,
+    appOrigin: 'https://editor.example.test', ownerId: '3010b4ba-15c6-4826-a0df-e7f10fc3ca76', refreshBeforeSeconds: 120 };
+  const makeRequest = (path, origin, contentType, token = 'csrf-token-fixture') => new Request(`https://editor.example.test${path}`, {
+    method: 'POST', headers: { origin, 'content-type': contentType, 'x-csrf-token': token }, body: Buffer.from('webp'),
+  });
+  const expectedAuthorizationFailure = error => error.status === 401;
+  await assert.rejects(requireAdmin(makeRequest('/api/admin/media/upload', config.appOrigin, 'image/webp'),
+    { mutation: true, csrfToken: 'csrf-token-fixture', mutationContentType: 'image/webp' }, { config }), expectedAuthorizationFailure);
+  await assert.rejects(requireAdmin(makeRequest('/api/admin/media/upload', 'https://evil.example.test', 'image/webp'),
+    { mutation: true, csrfToken: 'csrf-token-fixture', mutationContentType: 'image/webp' }, { config }), error => error.status === 403);
+  await assert.rejects(requireAdmin(makeRequest('/api/admin/session', config.appOrigin, 'image/webp'),
+    { mutation: true, csrfToken: 'csrf-token-fixture', mutationContentType: 'image/webp' }, { config }), error => error.status === 403);
+  await assert.rejects(requireAdmin(makeRequest('/api/admin/media/upload', config.appOrigin, 'image/webp'),
+    { mutation: true, csrfToken: 'csrf-token-fixture' }, { config }), error => error.status === 403);
+});
+
 test('logout revokes the app session before attempting remote Auth signout and ignores Auth failure', async () => {
   const { createCsrfToken } = await import('../../server/blog/csrf.mjs');
   const { requireAdmin, logout } = await import('../../server/blog/auth.mjs');

@@ -254,11 +254,21 @@ export async function login({ email, password }, request, options = {}) {
   return { response, session: { userId: user.id, sessionId: appSession.sessionId, generation: 1, expiresAt: cookie.expiresAt } };
 }
 
-export async function requireAdmin(request, { mutation = false, csrfToken, forLogout = false } = {}, options = {}) {
+export async function requireAdmin(request, { mutation = false, csrfToken, forLogout = false, mutationContentType } = {}, options = {}) {
   const config = options.config ?? readBlogConfig();
+  const requestedContentType = request.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
+  let expectedContentType = 'application/json';
+  if (mutationContentType === 'image/webp') {
+    let isExactUploadRoute = false;
+    try { isExactUploadRoute = request.method === 'POST' && new URL(request.url).pathname === '/api/admin/media/upload'; } catch { /* invalid requests fail closed */ }
+    if (!isExactUploadRoute) throw new BlogAuthError(403, 'BLOG_FORBIDDEN', 'The request is not authorized.');
+    expectedContentType = 'image/webp';
+  } else if (mutationContentType !== undefined && mutationContentType !== 'application/json') {
+    throw new BlogAuthError(403, 'BLOG_FORBIDDEN', 'The request is not authorized.');
+  }
   if (mutation && (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
       || request.headers.get('origin') !== config.appOrigin
-      || request.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase() !== 'application/json')) {
+      || requestedContentType !== expectedContentType)) {
     throw new BlogAuthError(403, 'BLOG_FORBIDDEN', 'The request is not authorized.');
   }
   const cookieValue = parseSessionCookie(request.headers.get('cookie'));

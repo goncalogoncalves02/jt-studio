@@ -12,6 +12,13 @@ import {
   parseTaskProjectConfig,
   validateLocalDatabaseTarget,
 } from '../../scripts/supabase-local.mjs';
+import {
+  buildStorageContainerCreateBody,
+  buildStorageInitializerSpec,
+  buildStorageServiceSpec,
+  validateStorageContainerCreateRequest,
+  validateStorageVolumeCreateRequest,
+} from '../../scripts/supabase-storage-runtime.mjs';
 
 const allowedNames = new Set([
   'supabase_db_jt-studio-blog-tests',
@@ -286,6 +293,109 @@ test('starts only an explicitly resumable full container ID and forwards the rea
   assert.equal(foreign.status, 403);
   assert.equal(alias.status, 403);
   assert.deepEqual(received, [`POST /v1.56/containers/${ownId}/start`]);
+});
+
+test('Storage recovery proxy forwards starts only for the two approved full IDs', async (t) => {
+  const initializerId = 'fc07c13392c9b099a44ac67f3d175dd87980513a907596b62c71fd01774417bc';
+  const serviceId = '64db731c94b829cd30427a0b30630e5979e17f15d157d297ac13d7fe0a5910e1';
+  const received = [];
+  const upstream = await socketServer((req, res) => {
+    received.push(`${req.method} ${req.url}`);
+    res.writeHead(204);
+    res.end();
+  });
+  const exactIds = new Set([initializerId, serviceId]);
+  const proxy = createDockerLoopbackProxy({
+    upstreamSocketPath: upstream.socketPath,
+    allowedNames: new Set(['supabase_storage_jt-studio-blog-tests-volume-init', 'supabase_storage_jt-studio-blog-tests']),
+    verifiedContainerIds: exactIds,
+    resumableContainerIds: exactIds,
+  });
+  t.after(async () => { await proxy.close(); await upstream.close(); });
+  await proxy.listen();
+  const initializer = await request(proxy.socketPath, `/v1.56/containers/${initializerId}/start`, { method: 'POST' });
+  const service = await request(proxy.socketPath, `/v1.56/containers/${serviceId}/start`, { method: 'POST' });
+  const stranger = await request(proxy.socketPath, `/v1.56/containers/${'f'.repeat(64)}/start`, { method: 'POST' });
+  const short = await request(proxy.socketPath, `/v1.56/containers/${serviceId.slice(0, 12)}/start`, { method: 'POST' });
+  assert.equal(initializer.status, 204);
+  assert.equal(service.status, 204);
+  assert.equal(stranger.status, 403);
+  assert.equal(short.status, 403);
+  assert.deepEqual(received, [
+    `POST /v1.56/containers/${initializerId}/start`,
+    `POST /v1.56/containers/${serviceId}/start`,
+  ]);
+});
+
+test('Storage Docker create guard accepts only exact service/initializer specs before upstream', async (t) => {
+  const serviceName = 'supabase_storage_jt-studio-blog-tests';
+  const initializerName = `${serviceName}-volume-init`;
+  const volumeName = 'supabase_storage_jt-studio-blog-tests';
+  const image = 'supabase/storage-api:v1.79.36@sha256:a68a0da4ab90eea4ce0bac36a2b855a162c8f3c03973615c6795995448f7d154';
+  const networkId = '4a414b5db8a0304cff2b69a0bddb391614d409125f9981ab8202f6685d805585';
+  const secret = 'storage-create-secret-fixture';
+  const env = { DATABASE_URL: 'postgres://private', SERVICE_KEY: secret };
+  const serviceSpec = buildStorageServiceSpec({ image, networkId, volumeName, env });
+  const initSpec = buildStorageInitializerSpec({ image, networkId, volumeName, env: {} });
+  const serviceBody = buildStorageContainerCreateBody(serviceName, serviceSpec);
+  const initBody = buildStorageContainerCreateBody(initializerName, initSpec);
+  let forwarded = 0;
+  const createdId = 'a'.repeat(64);
+  const upstream = await socketServer((req, res) => {
+    forwarded += 1;
+    if (req.method === 'POST' && req.url.includes('/containers/create')) {
+      res.writeHead(201, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ Id: createdId }));
+    } else {
+      res.writeHead(204);
+      res.end();
+    }
+  });
+  const proxy = createDockerLoopbackProxy({
+    upstreamSocketPath: upstream.socketPath,
+    allowedNames: new Set([serviceName, initializerName]),
+    allowCreatedContainerStarts: true,
+    createRequestGuard: (name, document) => validateStorageContainerCreateRequest(name, document, env),
+    volumeCreateGuard: validateStorageVolumeCreateRequest,
+  });
+  t.after(async () => { await proxy.close(); await upstream.close(); });
+  await proxy.listen();
+
+  const volume = await request(proxy.socketPath, '/v1.56/volumes/create', {
+    method: 'POST', body: { Name: volumeName, Driver: 'local', Labels: { 'org.jt-studio.project': 'jt-studio-blog-tests', 'org.jt-studio.task': 'blog-editorial-task5' } },
+  });
+  const service = await request(proxy.socketPath, `/v1.56/containers/create?name=${serviceName}`, { method: 'POST', body: serviceBody });
+  const initializer = await request(proxy.socketPath, `/v1.56/containers/create?name=${initializerName}`, { method: 'POST', body: initBody });
+  const start = await request(proxy.socketPath, `/v1.56/containers/${createdId}/start`, { method: 'POST' });
+  assert.equal(volume.status, 204);
+  assert.equal(service.status, 201);
+  assert.equal(initializer.status, 201);
+  assert.equal(start.status, 204);
+  assert.equal(forwarded, 4);
+
+  const invalid = [
+    { name: serviceName, body: { ...serviceBody, User: '0:0' } },
+    { name: serviceName, body: { ...serviceBody, HostConfig: { ...serviceBody.HostConfig, PortBindings: { '5000/tcp': [{ HostIp: '0.0.0.0', HostPort: '5000' }] } } } },
+    { name: serviceName, body: { ...serviceBody, HostConfig: { ...serviceBody.HostConfig, NetworkMode: 'bridge' } } },
+    { name: serviceName, body: { ...serviceBody, HostConfig: { ...serviceBody.HostConfig, Mounts: [{ Type: 'volume', Source: 'protected-volume', Target: '/mnt' }] } } },
+    { name: serviceName, body: { ...serviceBody, HostConfig: { ...serviceBody.HostConfig, Mounts: [{ ...serviceBody.HostConfig.Mounts[0], VolumeOptions: { NoCopy: false } }] } } },
+    { name: serviceName, body: { ...serviceBody, HostConfig: { ...serviceBody.HostConfig, NanoCpus: 0, Memory: 0, MemorySwap: 0, PidsLimit: 0 } } },
+    { name: serviceName, body: { ...serviceBody, Healthcheck: { ...serviceBody.Healthcheck, Test: ['CMD-SHELL', 'wget http://127.0.0.1:5000/status'] } } },
+    { name: initializerName, body: { ...initBody, Cmd: ['-e', 'require("node:fs").rmSync("/",{recursive:true,force:true})'] } },
+    { name: initializerName, body: { ...initBody, HostConfig: { ...initBody.HostConfig, Mounts: [{ ...initBody.HostConfig.Mounts[0], VolumeOptions: { NoCopy: false } }] } } },
+  ];
+  for (const [index, entry] of invalid.entries()) {
+    const result = await request(proxy.socketPath, `/v1.56/containers/create?name=${entry.name}`, { method: 'POST', body: entry.body });
+    assert.equal(result.status, 403, `mutant ${index} must be rejected`);
+    assert.equal(result.body.includes(secret), false);
+  }
+  const foreignVolume = await request(proxy.socketPath, '/v1.56/volumes/create', {
+    method: 'POST', body: { Name: 'protected-volume', Driver: 'local' },
+  });
+  assert.equal(foreignVolume.status, 403);
+  const foreignStart = await request(proxy.socketPath, `/v1.56/containers/${'b'.repeat(64)}/start`, { method: 'POST' });
+  assert.equal(foreignStart.status, 403);
+  assert.equal(forwarded, 4, 'invalid Docker requests must never reach the daemon');
 });
 
 test('passes through non-create requests and real response bytes unchanged', async (t) => {

@@ -32,7 +32,9 @@ export async function adminFetch(path, options = {}, { epoch = sessionEpoch(), s
   const headers = new Headers(options.headers);
   headers.set('accept', 'application/json');
   const body = options.body;
-  if (body !== undefined && !headers.has('content-type')) headers.set('content-type', 'application/json');
+  const binaryBody = typeof Blob !== 'undefined' && body instanceof Blob
+    || body instanceof ArrayBuffer || ArrayBuffer.isView(body);
+  if (body !== undefined && !binaryBody && !headers.has('content-type')) headers.set('content-type', 'application/json');
   if (method !== 'GET' && method !== 'HEAD') {
     const state = getSessionState();
     if (!state?.csrfToken) {
@@ -49,7 +51,7 @@ export async function adminFetch(path, options = {}, { epoch = sessionEpoch(), s
     ...options,
     method,
     headers,
-    body: body === undefined || typeof body === 'string' ? body : JSON.stringify(body),
+    body: body === undefined || typeof body === 'string' || binaryBody ? body : JSON.stringify(body),
     credentials: 'same-origin',
     cache: 'no-store',
     redirect: 'error',
