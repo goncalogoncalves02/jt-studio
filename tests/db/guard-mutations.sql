@@ -39,7 +39,16 @@ declare
     "coverMediaId":null,
     "serviceId":null
   }'::jsonb;
+  v_root_input jsonb := '{
+    "title":"Causal non-doc root fixture",
+    "slug":"task3-document-root-mutation",
+    "excerpt":"Synthetic root validator proof",
+    "document":{"type":"paragraph","content":[{"type":"text","text":"synthetic root body"}]},
+    "coverMediaId":null,
+    "serviceId":null
+  }'::jsonb;
   v_result jsonb;
+  v_root_id uuid;
 begin
   update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
   insert into blog_private.admin_sessions (session_id, user_id, generation, expires_at)
@@ -68,6 +77,15 @@ begin
       and document #>> '{content,0,content,0,attrs,onerror}' = 'synthetic'
   ) then
     raise exception 'the accepted RPC did not persist the synthetic unknown attribute';
+  end if;
+  v_result := public.blog_save_post(v_root_input, 0, v_session_id, 1);
+  v_root_id := (v_result ->> 'id')::uuid;
+  perform public.blog_mark_prepared(v_root_id, 1, 'upsert', v_session_id, 1);
+  if not exists (
+    select 1 from public.blog_posts where id = v_root_id and prepared_action = 'upsert'
+      and document ->> 'type' = 'paragraph'
+  ) then
+    raise exception 'removing the DocumentV1 root guard did not allow a non-doc root to become ready';
   end if;
 end;
 $task3_document_guard_mutation$;

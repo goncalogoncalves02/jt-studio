@@ -90,19 +90,27 @@ async function run() {
   const freshSessionId = randomUUID();
   const snapshotSessionId = randomUUID();
   const writerSessionId = randomUUID();
+  const membershipSessionId = randomUUID();
   const slug = `task3-expiry-${randomUUID()}`;
   const blocker = makeClient();
   const requester = makeClient();
   const observer = makeClient();
+  const monitor = makeClient();
   let ownerSetting = false;
+  let previousOwnerId;
   let locked = false;
   let savedPostId;
   let preparedPostId;
   let snapshotReleaseId;
   let freezeTransactionOpen = false;
   let requestPromise;
+  let membershipPreparePromise;
+  let membershipFreezePromise;
+  let membershipTableLocked = false;
+  let membershipOuterOpen = false;
+  const membershipPostIds = [];
   try {
-    await Promise.all([blocker.connect(), requester.connect(), observer.connect()]);
+    await Promise.all([blocker.connect(), requester.connect(), observer.connect(), monitor.connect()]);
     await requester.query('begin');
     await requester.query("select set_config('blog.task3_guc_lifecycle_probe','transaction-value',true)");
     await requester.query('commit');
@@ -112,7 +120,8 @@ async function run() {
     const dbIdentity = await observer.query("select current_database() as db, current_setting('server_version_num') as version");
     if (dbIdentity.rows[0]?.db !== 'postgres' || !dbIdentity.rows[0]?.version?.startsWith('17')) stop('database-identity');
     const setting = await observer.query('select authorized_owner_id from blog_private.settings where singleton for update');
-    if (setting.rowCount !== 1 || setting.rows[0].authorized_owner_id !== null) stop('owner-setting-baseline');
+    if (setting.rowCount !== 1 || setting.rows[0].authorized_owner_id !== null) stop('owner-setting-unset-baseline');
+    previousOwnerId = setting.rows[0].authorized_owner_id;
     await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton', [ownerId]);
     ownerSetting = true;
     await observer.query(
@@ -123,8 +132,9 @@ async function run() {
        ($5,$2,1,clock_timestamp()+interval '30 minutes'),
        ($6,$2,1,clock_timestamp()+interval '30 minutes'),
        ($7,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($8,$2,1,clock_timestamp()+interval '30 minutes')`,
-      [sessionId, ownerId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId],
+       ($8,$2,1,clock_timestamp()+interval '30 minutes'),
+       ($9,$2,1,clock_timestamp()+interval '30 minutes')`,
+      [sessionId, ownerId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId],
     );
     const inserted = await observer.query(
       "update blog_private.admin_sessions set expires_at=clock_timestamp()+interval '6 seconds' where session_id=$1 returning expires_at",
@@ -313,15 +323,102 @@ async function run() {
       stop('freeze-save-snapshot-isolation');
     }
     process.stdout.write(`PASS freeze held prepared rows against a concurrent save; immutable snapshot stayed fixed (post=${preparedPostId}, release=${snapshotReleaseId})\n`);
+
+    const membershipA = await observer.query('select public.blog_save_post($1::jsonb,0,$2::uuid,1) as result', [
+      JSON.stringify({ title: 'Freeze membership A', slug: `task3-membership-a-${randomUUID()}`, excerpt: 'Prepared before summary', document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }] }, coverMediaId: null, serviceId: null }),
+      membershipSessionId,
+    ]);
+    const membershipAId = membershipA.rows[0].result.id;
+    membershipPostIds.push(membershipAId);
+    const membershipB = await observer.query('select public.blog_save_post($1::jsonb,0,$2::uuid,1) as result', [
+      JSON.stringify({ title: 'Freeze membership B', slug: `task3-membership-b-${randomUUID()}`, excerpt: 'Prepared after summary', document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'B' }] }] }, coverMediaId: null, serviceId: null }),
+      membershipSessionId,
+    ]);
+    const membershipBId = membershipB.rows[0].result.id;
+    membershipPostIds.push(membershipBId);
+    await observer.query('select public.blog_mark_prepared($1::uuid,1,$2,$3::uuid,1)', [membershipAId, 'upsert', membershipSessionId]);
+    const membershipSummary = await observer.query('select public.blog_publication_summary($1::uuid,1) as summary', [membershipSessionId]);
+    const membershipDigest = membershipSummary.rows[0].summary.digest;
+    const membershipRequestId = randomUUID();
+    await blocker.query('begin');
+    await blocker.query('lock table blog_private.releases in share mode');
+    membershipTableLocked = true;
+    const membershipBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
+    const membershipFreezePid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
+    await requester.query('begin');
+    await requester.query('savepoint membership_freeze');
+    membershipOuterOpen = true;
+    membershipFreezePromise = requester.query(
+      'select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
+      [membershipRequestId, membershipSessionId, membershipDigest],
+    );
+    await waitForBlocking(monitor, membershipBlockerPid, membershipFreezePid, 'membership-freeze-release-insert-pg-blocking-pids');
+    const pendingReleaseInsert = await monitor.query(
+      `select exists(select 1 from pg_locks where pid=$1 and relation='blog_private.releases'::regclass
+       and mode='RowExclusiveLock' and not granted) as waiting`, [membershipFreezePid],
+    );
+    if (pendingReleaseInsert.rows[0]?.waiting !== true) stop('membership-freeze-not-blocked-at-release-insert');
+    let slotNowaitBlocked = false;
+    try {
+      await monitor.query('select singleton from blog_private.build_slot where singleton for update nowait');
+    } catch (error) {
+      if (error.code !== '55P03') throw error;
+      slotNowaitBlocked = true;
+    }
+    if (!slotNowaitBlocked) stop('membership-freeze-does-not-hold-build-slot-at-release-insert');
+    const membershipWriterPid = Number((await observer.query('select pg_backend_pid() as pid')).rows[0].pid);
+    membershipPreparePromise = observer.query(
+      'select public.blog_mark_prepared($1::uuid,1,$2,$3::uuid,1)',
+      [membershipBId, 'upsert', membershipSessionId],
+    );
+    const membershipPrepareMode = await Promise.race([
+      waitForBlocking(monitor, membershipFreezePid, membershipWriterPid, 'membership-mark-prepared-slot-pg-blocking-pids').then(() => 'blocked'),
+      membershipPreparePromise.then(() => 'completed'),
+    ]);
+    await blocker.query('commit');
+    membershipTableLocked = false;
+    const membershipFrozen = await membershipFreezePromise;
+    const membershipFrozenResult = membershipFrozen.rows[0].result;
+    const membershipPayload = JSON.parse(membershipFrozenResult.payload);
+    if (!membershipPayload.posts.some((post) => post.id === membershipAId)
+      || membershipPayload.posts.some((post) => post.id === membershipBId)) stop('membership-payload-not-exact-summary-set');
+    const bInsideFreeze = await requester.query(
+      'select prepared_action,first_confirmed_at from public.blog_posts where id=$1', [membershipBId],
+    );
+    const bConsumedBeforeRollback = bInsideFreeze.rows[0]?.prepared_action === null
+      && bInsideFreeze.rows[0]?.first_confirmed_at !== null;
+    await requester.query('rollback to savepoint membership_freeze');
+    await requester.query('rollback');
+    membershipOuterOpen = false;
+    await membershipPreparePromise;
+    membershipPreparePromise = null;
+    const membershipBFinal = await monitor.query(
+      'select prepared_action,first_confirmed_at from public.blog_posts where id=$1', [membershipBId],
+    );
+    await monitor.query("select set_config('request.jwt.claim.sub',$1,false)", [ownerId]);
+    const membershipNextSummary = await monitor.query(
+      'select public.blog_publication_summary($1::uuid,1) as summary', [membershipSessionId],
+    );
+    const bInNextSummary = membershipNextSummary.rows[0].summary.changes.some((change) => change.postId === membershipBId);
+    process.stdout.write(`OBS late-ready mode=${membershipPrepareMode} consumed=${bConsumedBeforeRollback} action=${membershipBFinal.rows[0]?.prepared_action ?? 'null'} confirmed=${membershipBFinal.rows[0]?.first_confirmed_at !== null} nextSummary=${bInNextSummary}\n`);
+    if (membershipPrepareMode !== 'blocked' || bConsumedBeforeRollback
+      || membershipBFinal.rows[0]?.prepared_action !== 'upsert'
+      || membershipBFinal.rows[0]?.first_confirmed_at !== null || !bInNextSummary) {
+      stop('late-ready-article-was-consumed-by-unrelated-freeze');
+    }
+    process.stdout.write('PASS a late readiness mutation physically waited on the freeze build-slot lock and remained in the next summary; pg_blocking_pids confirmed both waits\n');
   } finally {
-    if (locked) await blocker.query('rollback').catch(() => {});
-    if (freezeTransactionOpen) await requester.query('rollback').catch(() => {});
+    if (locked || membershipTableLocked) await blocker.query('rollback').catch(() => {});
+    if (freezeTransactionOpen || membershipOuterOpen) await requester.query('rollback').catch(() => {});
     if (requestPromise) await requestPromise.catch(() => {});
+    if (membershipFreezePromise) await membershipFreezePromise.catch(() => {});
+    if (membershipPreparePromise) await membershipPreparePromise.catch(() => {});
     if (savedPostId) await observer.query('delete from public.blog_posts where id=$1', [savedPostId]).catch(() => {});
     if (preparedPostId) await observer.query('delete from public.blog_posts where id=$1 and first_confirmed_at is null', [preparedPostId]).catch(() => {});
-    await observer.query('delete from blog_private.admin_sessions where session_id=any($1::uuid[])', [[sessionId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId]]).catch(() => {});
-    if (ownerSetting) await observer.query('update blog_private.settings set authorized_owner_id=null where singleton and authorized_owner_id=$1', [ownerId]).catch(() => {});
-    await Promise.all([blocker.end().catch(() => {}), requester.end().catch(() => {}), observer.end().catch(() => {})]);
+    if (membershipPostIds.length) await observer.query('delete from public.blog_posts where id=any($1::uuid[]) and first_confirmed_at is null', [membershipPostIds]).catch(() => {});
+    await observer.query('delete from blog_private.admin_sessions where session_id=any($1::uuid[])', [[sessionId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId]]).catch(() => {});
+    if (ownerSetting) await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton and authorized_owner_id=$2', [previousOwnerId, ownerId]).catch(() => {});
+    await Promise.all([blocker.end().catch(() => {}), requester.end().catch(() => {}), observer.end().catch(() => {}), monitor.end().catch(() => {})]);
     await close();
   }
 }

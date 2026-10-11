@@ -25,6 +25,20 @@ begin
     null;
   end;
 
+  begin
+    perform public.blog_save_post(jsonb_build_object(
+      'title', 'Non-document root',
+      'slug', 'non-document-root',
+      'excerpt', 'An outer paragraph is not DocumentV1',
+      'document', '{"type":"paragraph","content":[{"type":"text","text":"Invalid root body"}]}'::jsonb,
+      'coverMediaId', null,
+      'serviceId', null
+    ), 0, v_session_id, 1);
+    raise exception 'blog_save_post accepted a non-doc DocumentV1 root';
+  exception when sqlstate '22023' then
+    null;
+  end;
+
   insert into public.blog_posts (owner_id, title, slug, document, first_confirmed_at)
   values (
     v_owner_id,
@@ -93,6 +107,32 @@ begin
     raise exception 'whitespace-only body was accepted as ready';
   exception when sqlstate '22023' then
     null;
+  end;
+
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title', E'\t\n' || chr(160),
+    'slug', 'blank-title-draft',
+    'excerpt', 'Valid excerpt',
+    'document', '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Valid body"}]}]}'::jsonb,
+    'coverMediaId', null, 'serviceId', null
+  ), 0, v_session_id, 1);
+  begin
+    perform public.blog_mark_prepared((v_result ->> 'id')::uuid, 1, 'upsert', v_session_id, 1);
+    raise exception 'whitespace-only title was accepted as ready';
+  exception when sqlstate '22023' then null;
+  end;
+
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title', 'Valid title',
+    'slug', 'blank-excerpt-draft',
+    'excerpt', chr(160) || chr(8192) || chr(65279),
+    'document', '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Valid body"}]}]}'::jsonb,
+    'coverMediaId', null, 'serviceId', null
+  ), 0, v_session_id, 1);
+  begin
+    perform public.blog_mark_prepared((v_result ->> 'id')::uuid, 1, 'upsert', v_session_id, 1);
+    raise exception 'whitespace-only excerpt was accepted as ready';
+  exception when sqlstate '22023' then null;
   end;
 
   perform public.blog_mark_prepared(v_post_id, 1, 'upsert', v_session_id, 1);

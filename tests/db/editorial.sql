@@ -53,6 +53,12 @@ begin
   if not blog_private.document_v1_valid('{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"ok"}]}]}'::jsonb) then
     raise exception 'the canonical DocumentV1 positive case must pass at the database boundary';
   end if;
+  if blog_private.document_v1_valid('{"type":"paragraph","content":[{"type":"text","text":"root paragraph"}]}'::jsonb)
+    or blog_private.document_v1_valid('{"type":"text","text":"root text"}'::jsonb)
+    or blog_private.document_v1_valid('{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"root list"}]}]}]}'::jsonb)
+    or blog_private.document_v1_valid('{"type":"image","attrs":{"mediaId":"root-image","alt":"root image"}}'::jsonb) then
+    raise exception 'DocumentV1 roots other than doc must fail closed';
+  end if;
   if not blog_private.document_v1_valid('{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A","marks":[{"type":"bold"}]},{"type":"text","text":" "},{"type":"text","text":"B","marks":[{"type":"italic"}]}]}]}'::jsonb) then
     raise exception 'DocumentV1 must preserve a whitespace-only text node between formatted spans';
   end if;

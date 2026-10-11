@@ -91,4 +91,219 @@ begin
 end;
 $task3_publication$;
 
+do $task3_publication_scenarios$
+declare
+  v_owner_id constant uuid := gen_random_uuid();
+  v_session_id constant uuid := gen_random_uuid();
+  v_slug_prefix text := 'batch-' || gen_random_uuid()::text;
+  v_base_id uuid;
+  v_first_release_id uuid;
+  v_second_release_id uuid;
+  v_third_release_id uuid;
+  v_a_id uuid;
+  v_b_id uuid;
+  v_c_id uuid;
+  v_d_id uuid;
+  v_e_id uuid;
+  v_g_id uuid;
+  v_result jsonb;
+  v_summary jsonb;
+  v_first jsonb;
+  v_second jsonb;
+  v_replay jsonb;
+  v_payload jsonb;
+  v_first_a jsonb;
+  v_candidate jsonb;
+  v_count_before bigint;
+  v_stale boolean;
+  v_base_posts jsonb;
+  v_row public.blog_posts%rowtype;
+  v_digest text;
+  v_request_one uuid := gen_random_uuid();
+  v_request_two uuid := gen_random_uuid();
+  v_request_three uuid := gen_random_uuid();
+  v_replay_count bigint;
+begin
+  select b.latest_confirmed_release_id, r.payload_text::jsonb -> 'posts'
+    into v_base_id, v_base_posts
+  from blog_private.build_slot b
+  join blog_private.releases r on r.release_id = b.latest_confirmed_release_id
+  where b.singleton
+  for update of b;
+  if v_base_id is null or jsonb_typeof(v_base_posts) is distinct from 'array' then
+    raise exception 'publication scenario requires an existing confirmed base';
+  end if;
+
+  update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
+  insert into blog_private.admin_sessions(session_id,user_id,generation,expires_at)
+  values (v_session_id,v_owner_id,1,clock_timestamp()+interval '10 minutes');
+  perform set_config('request.jwt.claim.sub',v_owner_id::text,true);
+
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title','Scenario A published','slug',v_slug_prefix||'-a','excerpt','A retained from a complete prior release',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A exact body"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),0,v_session_id,1);
+  v_a_id := (v_result->>'id')::uuid;
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title','Scenario D published then removed','slug',v_slug_prefix||'-d','excerpt','D has a prepared removal',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"D exact body"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),0,v_session_id,1);
+  v_d_id := (v_result->>'id')::uuid;
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title','Scenario C draft','slug',v_slug_prefix||'-c','excerpt','Never prepared',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"C draft body"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),0,v_session_id,1);
+  v_c_id := (v_result->>'id')::uuid;
+  perform public.blog_mark_prepared(v_a_id,1,'upsert',v_session_id,1);
+  perform public.blog_mark_prepared(v_d_id,1,'upsert',v_session_id,1);
+  v_summary := public.blog_publication_summary(v_session_id,1);
+  v_first := public.blog_freeze_release(v_request_one,1,v_session_id,v_summary->>'digest');
+  v_first_release_id := (v_first->>'releaseId')::uuid;
+  v_payload := (v_first->>'payload')::jsonb;
+  if jsonb_array_length(v_payload->'posts') <> jsonb_array_length(v_base_posts)+2
+    or not (v_payload->'posts' @> v_base_posts) then
+    raise exception 'first complete release lost unrelated confirmed base posts or omitted A/D';
+  end if;
+  select value into v_first_a from jsonb_array_elements(v_payload->'posts') where value->>'id'=v_a_id::text;
+  select * into v_row from public.blog_posts where id=v_a_id;
+  if v_first_a is null or v_first_a->>'title' <> 'Scenario A published'
+    or v_first_a->>'slug' <> v_slug_prefix||'-a'
+    or v_first_a->'document' <> '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A exact body"}]}]}'::jsonb
+    or v_first_a->'publishedAt' is null or v_first_a->'modifiedAt' is null
+    or v_row.first_confirmed_at is null
+    or v_first_a is distinct from blog_private.public_post_json(v_row,v_row.first_confirmed_at) then
+    raise exception 'first release A identity, complete content, or dates are not exact';
+  end if;
+  if encode(extensions.digest(convert_to(v_first->>'payload','UTF8'),'sha256'),'hex') <> v_first->>'digest'
+    or not exists(select 1 from blog_private.releases r where r.release_id=v_first_release_id and r.payload_text=v_first->>'payload' and r.digest=v_first->>'digest') then
+    raise exception 'first release exact bytes and digest were not persisted';
+  end if;
+  update blog_private.publication_requests set state='failed' where request_id=v_request_one;
+
+  perform public.blog_mark_prepared(v_d_id,1,'remove',v_session_id,1);
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title','Scenario B ready','slug',v_slug_prefix||'-b','excerpt','B enters this later release',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"B exact body"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),0,v_session_id,1);
+  v_b_id := (v_result->>'id')::uuid;
+  perform public.blog_mark_prepared(v_b_id,1,'upsert',v_session_id,1);
+  v_summary := public.blog_publication_summary(v_session_id,1);
+  v_digest := v_summary->>'digest';
+  v_second := public.blog_freeze_release(v_request_two,1,v_session_id,v_digest);
+  v_second_release_id := (v_second->>'releaseId')::uuid;
+  v_payload := (v_second->>'payload')::jsonb;
+  if not exists(select 1 from blog_private.releases r where r.release_id=v_second_release_id and r.base_release_id=v_first_release_id)
+    or (select state from blog_private.publication_requests where request_id=v_request_one) <> 'failed' then
+    raise exception 'failed prior publication must remain the next complete base';
+  end if;
+  if jsonb_array_length(v_payload->'posts') <> jsonb_array_length(v_base_posts)+2
+    or not (v_payload->'posts' @> v_base_posts)
+    or exists(select 1 from jsonb_array_elements(v_payload->'posts') p where p->>'id'=v_d_id::text or p->>'id'=v_c_id::text)
+    or not exists(select 1 from jsonb_array_elements(v_payload->'posts') p where p->>'id'=v_a_id::text)
+    or not exists(select 1 from jsonb_array_elements(v_payload->'posts') p where p->>'id'=v_b_id::text) then
+    raise exception 'complete A+B output must retain base, include ready B, and exclude removed D and draft C';
+  end if;
+  select value into v_candidate from jsonb_array_elements(v_payload->'posts') where value->>'id'=v_a_id::text;
+  if v_candidate is distinct from v_first_a then raise exception 'retained published A changed in the next complete payload'; end if;
+  select value into v_candidate from jsonb_array_elements(v_payload->'posts') where value->>'id'=v_b_id::text;
+  select * into v_row from public.blog_posts where id=v_b_id;
+  if v_candidate is distinct from blog_private.public_post_json(v_row,v_row.first_confirmed_at)
+    or v_candidate->>'title' <> 'Scenario B ready'
+    or v_candidate->'document' <> '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"B exact body"}]}]}'::jsonb then
+    raise exception 'ready B identity, content, or publication dates do not match its persisted row';
+  end if;
+  if encode(extensions.digest(convert_to(v_second->>'payload','UTF8'),'sha256'),'hex') <> v_second->>'digest'
+    or not exists(select 1 from blog_private.releases r where r.release_id=v_second_release_id and r.payload_text=v_second->>'payload' and r.digest=v_second->>'digest') then
+    raise exception 'second release exact bytes and digest were not persisted';
+  end if;
+  select count(*) into v_count_before from blog_private.releases;
+
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title','Scenario E new readiness','slug',v_slug_prefix||'-e','excerpt','Must survive a replay',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"E body"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),0,v_session_id,1);
+  v_e_id := (v_result->>'id')::uuid;
+  perform public.blog_mark_prepared(v_e_id,1,'upsert',v_session_id,1);
+  v_replay := public.blog_freeze_release(v_request_two,1,v_session_id,v_digest);
+  select count(*) into v_replay_count from blog_private.releases;
+  select * into v_row from public.blog_posts where id=v_e_id;
+  if v_replay->>'releaseId' <> v_second->>'releaseId'
+    or v_replay->>'payload' <> v_second->>'payload'
+    or v_replay->>'digest' <> v_second->>'digest'
+    or v_replay_count <> v_count_before
+    or v_row.prepared_action <> 'upsert' or v_row.first_confirmed_at is not null then
+    raise exception 'same request/digest replay must return exact bytes without a new release or consuming later readiness';
+  end if;
+  v_stale := false;
+  begin
+    perform public.blog_freeze_release(v_request_two,1,v_session_id,repeat('0',64));
+  exception when sqlstate '40001' then v_stale := true;
+  end;
+  if not v_stale then raise exception 'same request id with a conflicting digest must fail'; end if;
+
+  v_summary := public.blog_publication_summary(v_session_id,1);
+  v_digest := v_summary->>'digest';
+  v_result := public.blog_save_post(jsonb_build_object(
+    'id',v_e_id,'title','Scenario E revised','slug',v_slug_prefix||'-e','excerpt','Must survive a replay',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"E revised"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),1,v_session_id,1);
+  v_stale := false;
+  begin
+    perform public.blog_freeze_release(v_request_three,1,v_session_id,v_digest);
+  exception when sqlstate '40001' then v_stale := true;
+  end;
+  select count(*) into v_replay_count from blog_private.releases;
+  if not v_stale or v_replay_count <> v_count_before or exists(select 1 from blog_private.publication_requests where request_id=v_request_three) then
+    raise exception 'revision-stale summary must fail without creating partial release state';
+  end if;
+
+  perform public.blog_mark_prepared(v_a_id,1,'remove',v_session_id,1);
+  v_summary := public.blog_publication_summary(v_session_id,1);
+  v_digest := v_summary->>'digest';
+  perform public.blog_mark_prepared(v_a_id,1,'upsert',v_session_id,1);
+  v_stale := false;
+  begin
+    perform public.blog_freeze_release(gen_random_uuid(),1,v_session_id,v_digest);
+  exception when sqlstate '40001' then v_stale := true;
+  end;
+  select count(*) into v_replay_count from blog_private.releases;
+  if not v_stale or v_replay_count <> v_count_before then
+    raise exception 'action-stale summary must fail without creating a release';
+  end if;
+
+  v_summary := public.blog_publication_summary(v_session_id,1);
+  v_digest := v_summary->>'digest';
+  v_first := public.blog_freeze_release(gen_random_uuid(),1,v_session_id,v_digest);
+  v_third_release_id := (v_first->>'releaseId')::uuid;
+  v_stale := false;
+  begin
+    perform public.blog_freeze_release(gen_random_uuid(),1,v_session_id,v_digest);
+  exception when sqlstate '40001' then v_stale := true;
+  end;
+  if not v_stale or not exists(select 1 from blog_private.build_slot where singleton and latest_confirmed_release_id=v_third_release_id) then
+    raise exception 'base-stale summary must fail closed after confirmed base advances';
+  end if;
+
+  v_result := public.blog_save_post(jsonb_build_object(
+    'title','Scenario G after base','slug',v_slug_prefix||'-g','excerpt','Absent base cannot empty-fallback',
+    'document','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"G body"}]}]}'::jsonb,
+    'coverMediaId',null,'serviceId',null),0,v_session_id,1);
+  v_g_id := (v_result->>'id')::uuid;
+  perform public.blog_mark_prepared(v_g_id,1,'upsert',v_session_id,1);
+  update blog_private.build_slot set latest_confirmed_release_id=null where singleton;
+  v_summary := public.blog_publication_summary(v_session_id,1);
+  select count(*) into v_count_before from blog_private.releases;
+  v_stale := false;
+  begin
+    perform public.blog_freeze_release(gen_random_uuid(),1,v_session_id,v_summary->>'digest');
+  exception when sqlstate '55000' then v_stale := true;
+  end;
+  select count(*) into v_replay_count from blog_private.releases;
+  if not v_stale or v_replay_count <> v_count_before then
+    raise exception 'absent confirmed base must fail without an empty fallback snapshot';
+  end if;
+  update blog_private.build_slot set latest_confirmed_release_id=v_third_release_id where singleton;
+end;
+$task3_publication_scenarios$;
+
 rollback;

@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { deepStrictEqual } from 'node:assert';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -24,6 +25,30 @@ function fail(stage) {
   const error = new Error(stage);
   error.stage = stage;
   throw error;
+}
+
+async function captureTransactionalTestState(client) {
+  const result = await client.query(`
+    select
+      (select jsonb_build_object('id', authorized_owner_id, 'updated_at', updated_at)
+        from blog_private.settings where singleton) as owner,
+      (select jsonb_build_object(
+        'latest_release', latest_confirmed_release_id,
+        'active_request', active_request_id,
+        'generation', generation,
+        'updated_at', updated_at
+      ) from blog_private.build_slot where singleton) as build_slot,
+      (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(release_id::text, ',' order by release_id), '')))
+        from blog_private.releases) as releases,
+      (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(id::text, ',' order by id), '')))
+        from public.blog_posts) as posts,
+      (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(session_id::text, ',' order by session_id), '')))
+        from blog_private.admin_sessions) as sessions,
+      (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(request_id::text, ',' order by request_id), '')))
+        from blog_private.publication_requests) as requests
+  `);
+  if (result.rowCount !== 1) fail('transaction-state-capture');
+  return result.rows[0];
 }
 
 function dockerContextSocket() {
@@ -83,14 +108,27 @@ async function run() {
 
     for (const name of names) {
       const sql = await readFile(join(root, allowedTests.get(name)), 'utf8');
+      const before = await captureTransactionalTestState(client);
       try { await client.query(sql); }
       catch (error) {
+        await client.query('rollback').catch(() => {});
+        const afterFailure = await captureTransactionalTestState(client);
+        try { deepStrictEqual(afterFailure, before); }
+        catch { fail(`${name}-persisted-side-effects-after-failure`); }
+        process.stdout.write(`PASS ${name}-no-persistent-side-effects-after-failure\n`);
         const sqlstate = typeof error?.code === 'string' && /^[0-9A-Z]{5}$/.test(error.code) ? error.code : 'UNKNOWN';
         const constraint = typeof error?.constraint === 'string' && /^[a-z0-9_]{1,63}$/.test(error.constraint)
           ? `-${error.constraint}` : '';
-        fail(`sql-${name}-${sqlstate}${constraint}`);
+        const line = typeof error?.where === 'string'
+          ? /inline_code_block line (\d+) at RAISE/i.exec(error.where)?.[1]
+          : undefined;
+        fail(`sql-${name}-${sqlstate}${constraint}${line ? `-raise-line-${line}` : ''}`);
       }
       process.stdout.write(`PASS ${name}\n`);
+      const after = await captureTransactionalTestState(client);
+      try { deepStrictEqual(after, before); }
+      catch { fail(`${name}-persisted-side-effects`); }
+      process.stdout.write(`PASS ${name}-no-persistent-side-effects\n`);
     }
     process.stdout.write(`Task-owned PostgreSQL ${identity.rows[0].version.slice(0, 2)} at loopback:${target.port}; ${names.length} SQL gates passed.\n`);
   } finally {

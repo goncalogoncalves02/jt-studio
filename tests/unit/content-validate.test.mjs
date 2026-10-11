@@ -118,6 +118,22 @@ test('validateDraft preserves whitespace-only text between differently marked sp
   assert.deepEqual(validator.validateDraft({ ...readyDraft(), document }).document, document);
 });
 
+test('DocumentV1 requires a doc root, matching the database trust boundary', () => {
+  for (const document of [
+    { type: 'paragraph', content: [{ type: 'text', text: 'root paragraph' }] },
+    { type: 'text', text: 'root text' },
+    { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'root list' }] }] }] },
+  ]) {
+    assert.throws(() => validator.validateDraft({ ...readyDraft(), document }), /doc root|DocumentV1/i);
+  }
+});
+
+test('ready title and excerpt reject the full ECMAScript trim whitespace set', () => {
+  const whitespace = '\u0009\u000a\u000b\u000c\u000d \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff';
+  assert.throws(() => validator.validateReadyArticle({ ...readyDraft(), title: whitespace }, completeMedia, { ownerId: 'owner-1' }), /required field/i);
+  assert.throws(() => validator.validateReadyArticle({ ...readyDraft(), excerpt: whitespace }, completeMedia, { ownerId: 'owner-1' }), /required field/i);
+});
+
 test('ready content needs non-whitespace text across the document', () => {
   const document = {
     type: 'doc',
