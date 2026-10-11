@@ -3,12 +3,13 @@ import { useLocation } from "react-router-dom";
 
 const SEO = ({ title, description, image, url }) => {
   const { pathname } = useLocation();
+  const canonicalPathname = pathname.replace(/\/+$/, "") || "/";
   const siteTitle = "JT Studio | Micropigmentação & Estética";
   const defaultDescription =
     "Micropigmentação, Nanoblading e Estética Avançada no JT Studio em Setúbal. Avaliação 4.9★ no Google. Agende já a sua sessão.";
   const siteUrl = "https://jaquelinetakiutistudio.com";
   const defaultImage = `${siteUrl}/og-image.png`;
-  const canonicalUrl = url || `${siteUrl}${pathname === "/" ? "" : pathname}`;
+  const canonicalUrl = url || `${siteUrl}${canonicalPathname === "/" ? "" : canonicalPathname}`;
   const pageTitle = title ? `${title} | JT Studio` : siteTitle;
 
   const businessSchema = {
@@ -70,7 +71,7 @@ const SEO = ({ title, description, image, url }) => {
   };
 
   const breadcrumbSchema =
-    pathname !== "/"
+    canonicalPathname !== "/"
       ? {
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -92,7 +93,7 @@ const SEO = ({ title, description, image, url }) => {
       : null;
 
   const websiteSchema =
-    pathname === "/"
+    canonicalPathname === "/"
       ? {
           "@context": "https://schema.org",
           "@type": "WebSite",
