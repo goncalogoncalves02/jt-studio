@@ -55,9 +55,10 @@ begin
   end;
 
   update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
-  insert into blog_private.admin_sessions (session_id, user_id, generation, expires_at)
-  values (v_session_id, v_owner_id, 1, clock_timestamp() + interval '10 minutes');
+  insert into blog_private.admin_sessions (session_id, user_id, auth_session_id, generation, expires_at)
+  values (v_session_id, v_owner_id, v_session_id, 1, clock_timestamp() + interval '10 minutes');
   perform set_config('request.jwt.claim.sub', v_owner_id::text, true);
+  perform set_config('request.jwt.claims', jsonb_build_object('sub',v_owner_id,'session_id',v_session_id)::text, true);
 
   select r.payload_text::jsonb -> 'posts' into v_base_posts
   from blog_private.build_slot b
@@ -135,9 +136,10 @@ begin
   end if;
 
   update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
-  insert into blog_private.admin_sessions(session_id,user_id,generation,expires_at)
-  values (v_session_id,v_owner_id,1,clock_timestamp()+interval '10 minutes');
+  insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at)
+  values (v_session_id,v_owner_id,v_session_id,1,clock_timestamp()+interval '10 minutes');
   perform set_config('request.jwt.claim.sub',v_owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_owner_id,'session_id',v_session_id)::text,true);
 
   v_result := public.blog_save_post(jsonb_build_object(
     'title','Scenario A published','slug',v_slug_prefix||'-a','excerpt','A retained from a complete prior release',

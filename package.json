@@ -13,10 +13,12 @@
     "test:legacy": "node --test tests/legacy/legacy-build.test.mjs",
     "test:browser": "playwright test",
     "build:media-harness": "node scripts/build-media-harness.mjs",
-    "rebuild:heif-codec": "bash scripts/build-heif-codec/rebuild.sh"
+    "rebuild:heif-codec": "bash scripts/build-heif-codec/rebuild.sh",
+    "test:e2e": "node tests/e2e/run.mjs"
   },
   "dependencies": {
     "@jsquash/webp": "1.5.0",
+    "@supabase/supabase-js": "2.117.3",
     "@tailwindcss/vite": "^4.1.18",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -35,6 +37,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "netlify-cli": "27.12.0",
     "parse5": "8.0.1",
     "pg": "8.23.1",
     "supabase": "2.120.0",

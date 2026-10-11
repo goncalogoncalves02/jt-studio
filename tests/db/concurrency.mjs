@@ -67,6 +67,11 @@ async function waitUntilExpired(observer, expiresAt, stage) {
   if (after.rows[0]?.expired !== true) stop(`${stage}-expiry-clock`);
 }
 
+async function setJwtSession(client, ownerId, authSessionId) {
+  const claims = JSON.stringify({ sub: ownerId, session_id: authSessionId });
+  await client.query("select set_config('request.jwt.claim.sub',$1,false), set_config('request.jwt.claims',$2,false)", [ownerId, claims]);
+}
+
 async function expectExpiredDenial(promise, stage) {
   try {
     const result = await promise;
@@ -125,15 +130,15 @@ async function run() {
     await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton', [ownerId]);
     ownerSetting = true;
     await observer.query(
-      `insert into blog_private.admin_sessions(session_id,user_id,generation,expires_at) values
-       ($1,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($3,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($4,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($5,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($6,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($7,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($8,$2,1,clock_timestamp()+interval '30 minutes'),
-       ($9,$2,1,clock_timestamp()+interval '30 minutes')`,
+      `insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at) values
+       ($1,$2,$1,1,clock_timestamp()+interval '30 minutes'),
+       ($3,$2,$3,1,clock_timestamp()+interval '30 minutes'),
+       ($4,$2,$4,1,clock_timestamp()+interval '30 minutes'),
+       ($5,$2,$5,1,clock_timestamp()+interval '30 minutes'),
+       ($6,$2,$6,1,clock_timestamp()+interval '30 minutes'),
+       ($7,$2,$7,1,clock_timestamp()+interval '30 minutes'),
+       ($8,$2,$8,1,clock_timestamp()+interval '30 minutes'),
+       ($9,$2,$9,1,clock_timestamp()+interval '30 minutes')`,
       [sessionId, ownerId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId],
     );
     const inserted = await observer.query(
@@ -148,11 +153,12 @@ async function run() {
     locked = true;
     const blockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
     const requesterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
-    await requester.query('select set_config(\'request.jwt.claim.sub\',$1,false)', [ownerId]);
+    await setJwtSession(requester, ownerId, sessionId);
     requestPromise = requester.query(
       `select public.blog_save_post($1::jsonb,0,$2::uuid,1) as result`,
       [JSON.stringify({ title: 'Expiry race fixture', slug, excerpt: '', document: { type: 'doc', content: [] } }), sessionId],
     );
+    requestPromise.catch(() => {});
 
     await waitForBlocking(observer, blockerPid, requesterPid, 'session-lock-pg-blocking-pids');
     await waitUntilExpired(observer, expiresAt, 'session-lock');
@@ -164,7 +170,7 @@ async function run() {
     requestPromise = null;
     process.stdout.write('PASS session expiry revalidated after physical session-lock wait; pg_blocking_pids confirmed the wait\n');
 
-    await observer.query("select set_config('request.jwt.claim.sub',$1,false)", [ownerId]);
+    await setJwtSession(observer, ownerId, postSessionId);
     const draft = {
       title: 'Concurrency fixture', slug, excerpt: 'Prepared before the concurrency proofs',
       document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Original snapshot text' }] }] },
@@ -184,10 +190,12 @@ async function run() {
     locked = true;
     const postBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
     const postRequesterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
+    await setJwtSession(requester, ownerId, postSessionId);
     requestPromise = requester.query(
       'select public.blog_save_post($1::jsonb,1,$2::uuid,1) as result',
       [JSON.stringify({ ...draft, id: preparedPostId, title: 'Expired save must not commit' }), postSessionId],
     );
+    requestPromise.catch(() => {});
     await waitForBlocking(observer, postBlockerPid, postRequesterPid, 'post-lock-pg-blocking-pids');
     await waitUntilExpired(observer, postExpiresAt, 'post-lock');
     await blocker.query('commit');
@@ -197,6 +205,7 @@ async function run() {
     requestPromise = null;
     process.stdout.write('PASS owner session expiry revalidated after save waited on a post row lock\n');
 
+    await setJwtSession(observer, ownerId, freezeSlotSessionId);
     const summaryResult = await observer.query('select public.blog_publication_summary($1::uuid,1) as summary', [freezeSlotSessionId]);
     expiryUpdate = await observer.query(
       "update blog_private.admin_sessions set expires_at=clock_timestamp()+interval '6 seconds' where session_id=$1 returning expires_at",
@@ -210,10 +219,12 @@ async function run() {
     const slotBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
     const slotRequesterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
     await requester.query('begin');
+    await setJwtSession(requester, ownerId, freezeSlotSessionId);
     requestPromise = requester.query(
       'select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
       [slotRequestId, freezeSlotSessionId, summaryResult.rows[0].summary.digest],
     );
+    requestPromise.catch(() => {});
     await waitForBlocking(observer, slotBlockerPid, slotRequesterPid, 'build-slot-pg-blocking-pids');
     await waitUntilExpired(observer, slotExpiresAt, 'build-slot');
     await blocker.query('commit');
@@ -226,6 +237,7 @@ async function run() {
     if (noSlotRequest.rowCount !== 0) stop('expired-build-slot-request-persisted');
     process.stdout.write('PASS session expiry revalidated after freeze waited on the build slot\n');
 
+    await setJwtSession(observer, ownerId, freezePostSessionId);
     const postSummaryResult = await observer.query('select public.blog_publication_summary($1::uuid,1) as summary', [freezePostSessionId]);
     expiryUpdate = await observer.query(
       "update blog_private.admin_sessions set expires_at=clock_timestamp()+interval '6 seconds' where session_id=$1 returning expires_at",
@@ -239,10 +251,12 @@ async function run() {
     const freezePostBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
     const freezePostRequesterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
     await requester.query('begin');
+    await setJwtSession(requester, ownerId, freezePostSessionId);
     requestPromise = requester.query(
       'select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
       [postRequestId, freezePostSessionId, postSummaryResult.rows[0].summary.digest],
     );
+    requestPromise.catch(() => {});
     await waitForBlocking(observer, freezePostBlockerPid, freezePostRequesterPid, 'freeze-post-pg-blocking-pids');
     await waitUntilExpired(observer, postExpiresAt, 'freeze-post');
     await blocker.query('commit');
@@ -275,6 +289,7 @@ async function run() {
     if (!partialDenied) stop('partial-session-context-was-not-denied');
     process.stdout.write('PASS empty transaction-local GUCs behave as absent for trusted SQL fixtures; partial session context denies\n');
 
+    await setJwtSession(requester, ownerId, freshSessionId);
     const freshSave = await requester.query(
       'select public.blog_save_post($1::jsonb,0,$2::uuid,1) as result',
       [JSON.stringify({ ...draft, slug: `task3-fresh-${randomUUID()}` }), freshSessionId],
@@ -283,11 +298,12 @@ async function run() {
     if (!savedPostId) stop('fresh-session-generation-not-recaptured');
     process.stdout.write('PASS a later authenticated RPC uses its explicit fresh session ID/generation after connection reuse\n');
 
-    await observer.query('select set_config(\'request.jwt.claim.sub\',$1,false)', [ownerId]);
+    await setJwtSession(observer, ownerId, snapshotSessionId);
     const snapshotSummary = await observer.query('select public.blog_publication_summary($1::uuid,1) as summary', [snapshotSessionId]);
     const snapshotRequestId = randomUUID();
     await requester.query('begin');
     freezeTransactionOpen = true;
+    await setJwtSession(requester, ownerId, snapshotSessionId);
     const frozen = await requester.query(
       'select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
       [snapshotRequestId, snapshotSessionId, snapshotSummary.rows[0].summary.digest],
@@ -303,7 +319,7 @@ async function run() {
 
     const freezePid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
     const writerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
-    await blocker.query('select set_config(\'request.jwt.claim.sub\',$1,false)', [ownerId]);
+    await setJwtSession(blocker, ownerId, writerSessionId);
     const writerPromise = blocker.query(
       'select public.blog_save_post($1::jsonb,1,$2::uuid,1) as result',
       [JSON.stringify({ ...draft, id: preparedPostId, title: 'Edited after immutable snapshot', document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New draft after freeze' }] }] } }), writerSessionId],
@@ -324,6 +340,7 @@ async function run() {
     }
     process.stdout.write(`PASS freeze held prepared rows against a concurrent save; immutable snapshot stayed fixed (post=${preparedPostId}, release=${snapshotReleaseId})\n`);
 
+    await setJwtSession(observer, ownerId, membershipSessionId);
     const membershipA = await observer.query('select public.blog_save_post($1::jsonb,0,$2::uuid,1) as result', [
       JSON.stringify({ title: 'Freeze membership A', slug: `task3-membership-a-${randomUUID()}`, excerpt: 'Prepared before summary', document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }] }, coverMediaId: null, serviceId: null }),
       membershipSessionId,
@@ -348,10 +365,12 @@ async function run() {
     await requester.query('begin');
     await requester.query('savepoint membership_freeze');
     membershipOuterOpen = true;
+    await setJwtSession(requester, ownerId, membershipSessionId);
     membershipFreezePromise = requester.query(
       'select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
       [membershipRequestId, membershipSessionId, membershipDigest],
     );
+    membershipFreezePromise.catch(() => {});
     await waitForBlocking(monitor, membershipBlockerPid, membershipFreezePid, 'membership-freeze-release-insert-pg-blocking-pids');
     const pendingReleaseInsert = await monitor.query(
       `select exists(select 1 from pg_locks where pid=$1 and relation='blog_private.releases'::regclass
@@ -371,6 +390,7 @@ async function run() {
       'select public.blog_mark_prepared($1::uuid,1,$2,$3::uuid,1)',
       [membershipBId, 'upsert', membershipSessionId],
     );
+    membershipPreparePromise.catch(() => {});
     const membershipPrepareMode = await Promise.race([
       waitForBlocking(monitor, membershipFreezePid, membershipWriterPid, 'membership-mark-prepared-slot-pg-blocking-pids').then(() => 'blocked'),
       membershipPreparePromise.then(() => 'completed'),
@@ -395,7 +415,7 @@ async function run() {
     const membershipBFinal = await monitor.query(
       'select prepared_action,first_confirmed_at from public.blog_posts where id=$1', [membershipBId],
     );
-    await monitor.query("select set_config('request.jwt.claim.sub',$1,false)", [ownerId]);
+    await setJwtSession(monitor, ownerId, membershipSessionId);
     const membershipNextSummary = await monitor.query(
       'select public.blog_publication_summary($1::uuid,1) as summary', [membershipSessionId],
     );

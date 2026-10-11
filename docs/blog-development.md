@@ -155,3 +155,65 @@ version returned only generic empty `message`/`results` envelopes for both; do n
 count those commands as completed analysis. Keep the checks that did run separate:
 SQL catalog/effective grants, RLS/Data API behavior, and physical concurrency.
 Do not substitute a cloud Advisor request for a local diagnostic.
+
+## Task 4 server-managed admin sessions
+
+The Netlify Function boundary reads only server-side configuration. The approved
+environment names are `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `BLOG_ADMIN_USER_ID`,
+`BLOG_SESSION_ENCRYPTION_KEY` (32 bytes encoded as 64 lowercase hexadecimal
+characters), and `BLOG_PUBLIC_ORIGIN` (an exact HTTPS origin). Keep local values
+outside tracked files; `.env.example` contains placeholders only. The service-role
+key is used only by narrow session RPC helpers. Editorial CRUD continues to use
+the owner's authenticated identity and database RLS.
+
+Browser session tests must run against the ready task-owned Supabase project and
+the actual local Auth service and Netlify Functions, not mocked application guards:
+
+```sh
+export PATH="/tmp/jt-studio-runtime/node-v24.21.0-linux-x64/bin:$PATH"
+export PLAYWRIGHT_BROWSERS_PATH=/tmp/jt-studio-browsers
+npm run test:e2e -- tests/e2e/session.spec.js
+node tests/db/admin-session-logout-concurrency.mjs
+node tests/db/admin-session-refresh-expiry-concurrency.mjs
+```
+
+The runner checks the pinned Supabase CLI version and exact loopback project before
+creating a synthetic `task4-*` Auth user. It sets the authorized owner only while
+the fixture is active, exercises password sign-in, opaque cookie transport and
+admin session reads in Chromium, then deletes only its own sessions/user and
+restores the owner setting. Confirm the owner is `NULL` and the exact fixture
+count is zero after any interrupted run; do not reset or reprovision the database.
+The browser cache and HTTPS test certificate stay under `/tmp`.
+
+The database proof separately holds the real app-session revocation RPC open on one
+PostgreSQL connection while an owner mutation starts on another. It requires the
+observer to see the blocker in `pg_blocking_pids`, then confirms the mutation is
+denied after logout commits. It runs only when the authorized owner is `NULL` and
+the task database has no leftover admin sessions, and verifies both baselines on
+cleanup. It does not use a sleep as evidence of blocking.
+
+Admin browser state stays in memory. The browser receives only an opaque
+`__Host-` Secure, HttpOnly, SameSite cookie; Auth access and refresh tokens remain
+encrypted in the private database schema. Mutations require exact Origin, JSON,
+and a session-bound CSRF token. Logout revokes the app session first and does not
+depend on a successful remote Auth sign-out. Session refresh uses one physical
+Auth refresh request after a database claim; do not reintroduce SDK retry behavior
+on that path. Refresh and user-verification HTTP transports each have an 8-second
+bound; session claim/complete/reconciliation RPCs have 6-second bounds. A refresh
+claim older than 45 seconds is conservatively revoked by a session/generation/claim
+CAS using database time; the stale result cannot complete or trigger a second Auth
+refresh. This leaves bounded reconciliation inside Netlify's 60-second Function
+limit and makes a stale browser session require a new login.
+
+The single `/api/admin/session` Function accepts GET for session reads and POST
+with the closed `action: "login" | "logout"` body discriminator. Unknown or missing
+actions return 400 without authentication or cookie effects. Logout requires the
+existing cookie and CSRF token, revokes the app session before remote Auth cleanup,
+and clears the cookie only after successful local revocation.
+
+Admin session subscribers receive a closed `reason` value with session changes:
+`login`, `logout`, `reauth-required`, or `invalidated`. Cross-tab messages contain
+only that reason and the change type; they never carry credentials, CSRF values,
+or editorial content. Consumers can treat explicit `logout` as a request to clear
+protected editor state, while `reauth-required` preserves drafts for sign-in again.

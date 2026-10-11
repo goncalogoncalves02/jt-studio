@@ -54,4 +54,10 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  {
+    files: ['tests/e2e/**/*.mjs'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
 ])

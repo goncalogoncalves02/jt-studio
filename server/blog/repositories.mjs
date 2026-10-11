@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { validateDraft } from '../../src/blog/content-validate.js';
+import { executeSessionMutation } from './auth.mjs';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
@@ -20,7 +21,7 @@ function assertUuid(value, label) {
 }
 
 function assertAuth(auth) {
-  if (!auth || !auth.client || typeof auth.client.rpc !== 'function') {
+  if (!auth || !auth.userSdk || typeof auth.userSdk.rpc !== 'function') {
     throw new BlogRepositoryError(401, 'An authenticated database client is required', 'BLOG_AUTH_REQUIRED');
   }
   if (typeof auth.sessionId !== 'string' || !UUID_PATTERN.test(auth.sessionId)
@@ -29,27 +30,18 @@ function assertAuth(auth) {
   }
 }
 
-function mapRpcError(error) {
-  switch (error?.code) {
-    case '40001':
-      return new BlogRepositoryError(409, 'The editorial state changed; reload the current revision.', 'BLOG_STALE_REVISION');
-    case '23505':
-      return new BlogRepositoryError(409, 'This editorial slug is already in use.', 'BLOG_SLUG_CONFLICT');
-    case '42501':
-      return new BlogRepositoryError(403, 'The editorial operation is not authorized.', 'BLOG_FORBIDDEN');
-    case '23514':
-    case '22023':
-      return new BlogRepositoryError(400, 'The editorial input is incomplete or invalid.', 'BLOG_INVALID_INPUT');
-    default:
-      return new BlogRepositoryError(503, 'The editorial service is temporarily unavailable.', 'BLOG_SERVICE_UNAVAILABLE');
-  }
-}
-
-async function rpc(auth, name, args) {
+async function rpc(auth, operation, input = {}) {
   assertAuth(auth);
-  const { data, error } = await auth.client.rpc(name, args);
-  if (error) throw mapRpcError(error);
-  return data;
+  try { return await executeSessionMutation(auth, { operation, input }); }
+  catch (error) {
+    if (error instanceof BlogRepositoryError) throw error;
+    if (error?.code === 'BLOG_STALE_REVISION') throw new BlogRepositoryError(409, 'The editorial state changed; reload the current revision.', 'BLOG_STALE_REVISION');
+    if (error?.code === 'BLOG_SLUG_CONFLICT') throw new BlogRepositoryError(409, 'This editorial slug is already in use.', 'BLOG_SLUG_CONFLICT');
+    if (error?.status === 403) throw new BlogRepositoryError(403, 'The editorial operation is not authorized.', 'BLOG_FORBIDDEN');
+    if (error?.status === 400) throw new BlogRepositoryError(400, 'The editorial input is incomplete or invalid.', 'BLOG_INVALID_INPUT');
+    if (error?.status === 401) throw new BlogRepositoryError(401, 'An active editor session is required.', 'BLOG_AUTH_REQUIRED');
+    throw new BlogRepositoryError(503, 'The editorial service is temporarily unavailable.', 'BLOG_SERVICE_UNAVAILABLE');
+  }
 }
 
 export async function savePost(auth, input, expectedRevision) {
@@ -60,12 +52,7 @@ export async function savePost(auth, input, expectedRevision) {
   if (id !== undefined) assertUuid(id, 'Post id');
   const draft = validateDraft(draftInput);
   const p_input = id === undefined ? draft : { ...draft, id };
-  return rpc(auth, 'blog_save_post', {
-    p_input,
-    p_expected_revision: expectedRevision,
-    p_session_id: auth.sessionId,
-    p_generation: auth.generation,
-  });
+  return rpc(auth, 'savePost', { post: p_input, expectedRevision });
 }
 
 export async function markPrepared(auth, postId, expectedRevision, action) {
@@ -76,20 +63,11 @@ export async function markPrepared(auth, postId, expectedRevision, action) {
   if (!['upsert', 'remove'].includes(action)) {
     throw new BlogRepositoryError(400, 'Prepared action is invalid', 'BLOG_INVALID_INPUT');
   }
-  return rpc(auth, 'blog_mark_prepared', {
-    p_post_id: postId,
-    p_expected_revision: expectedRevision,
-    p_action: action,
-    p_session_id: auth.sessionId,
-    p_generation: auth.generation,
-  });
+  return rpc(auth, 'markPrepared', { postId, expectedRevision, action });
 }
 
 export async function getPublicationSummary(auth) {
-  return rpc(auth, 'blog_publication_summary', {
-    p_session_id: auth.sessionId,
-    p_generation: auth.generation,
-  });
+  return rpc(auth, 'publicationSummary');
 }
 
 export async function freezeRelease(auth, requestId, expectedDigest) {
@@ -97,12 +75,7 @@ export async function freezeRelease(auth, requestId, expectedDigest) {
   if (typeof expectedDigest !== 'string' || !SHA256_PATTERN.test(expectedDigest)) {
     throw new BlogRepositoryError(400, 'Publication summary digest is invalid', 'BLOG_INVALID_INPUT');
   }
-  const release = await rpc(auth, 'blog_freeze_release', {
-    p_request_id: requestId,
-    p_generation: auth.generation,
-    p_session_id: auth.sessionId,
-    p_expected_digest: expectedDigest,
-  });
+  const release = await rpc(auth, 'freezeRelease', { requestId, expectedDigest });
   if (!release || typeof release !== 'object'
     || typeof release.releaseId !== 'string'
     || typeof release.payload !== 'string'

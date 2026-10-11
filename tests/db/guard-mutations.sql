@@ -51,9 +51,10 @@ declare
   v_root_id uuid;
 begin
   update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
-  insert into blog_private.admin_sessions (session_id, user_id, generation, expires_at)
-  values (v_session_id, v_owner_id, 1, clock_timestamp() + interval '10 minutes');
+  insert into blog_private.admin_sessions (session_id, user_id, auth_session_id, generation, expires_at)
+  values (v_session_id, v_owner_id, v_session_id, 1, clock_timestamp() + interval '10 minutes');
   perform set_config('request.jwt.claim.sub', v_owner_id::text, true);
+  perform set_config('request.jwt.claims', jsonb_build_object('sub',v_owner_id,'session_id',v_session_id)::text, true);
 
   begin
     perform public.blog_save_post(v_input, 0, v_session_id, 1);

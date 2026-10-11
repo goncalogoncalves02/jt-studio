@@ -53,6 +53,11 @@ function apiHeaders(apiKey, accessToken = apiKey) {
   return { apikey: apiKey, authorization: `Bearer ${accessToken}` };
 }
 
+function authSessionId(accessToken) {
+  try { return JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8')).session_id; }
+  catch { return null; }
+}
+
 async function createAuthFixture(apiUrl, serviceKey, anonKey) {
   const email = `task3-${randomUUID()}@example.com`;
   const password = `Aa9!${randomUUID()}`;
@@ -118,9 +123,9 @@ async function run() {
     await client.query('update blog_private.settings set authorized_owner_id = $1 where singleton', [owner.userId]);
     ownerWasSet = true;
     await client.query(
-      `insert into blog_private.admin_sessions(session_id,user_id,generation,expires_at)
-       values ($1,$2,1,clock_timestamp()+interval '10 minutes'),($3,$4,1,clock_timestamp()+interval '10 minutes')`,
-      [sessionIds.owner, owner.userId, sessionIds.nonOwner, nonOwner.userId],
+      `insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at)
+       values ($1,$2,$3,1,clock_timestamp()+interval '10 minutes'),($4,$5,$6,1,clock_timestamp()+interval '10 minutes')`,
+      [sessionIds.owner, owner.userId, authSessionId(owner.accessToken), sessionIds.nonOwner, nonOwner.userId, authSessionId(nonOwner.accessToken)],
     );
     sessionsWereCreated = true;
 
