@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -81,4 +81,12 @@ test('legacy_build_preserves_static_metadata_before_javascript', () => {
   assert.equal(schemas.length, 1);
   assert.deepEqual(JSON.parse(schemas[0].childNodes.map((child) => child.value ?? '').join('')), expectedBusinessData);
   assert.equal(bootstrap.length, 0, 'legacy output remains a client shell, not a fixture build');
+});
+
+test('public_build_excludes_editor_image_codec_workers_and_wasm', () => {
+  const assets = path.join(root, 'dist/assets');
+  const names = readdirSync(assets);
+  assert.equal(names.some((name) => name.endsWith('.wasm') || /image-worker|webp_enc|heic-to/i.test(name)), false);
+  const javascript = names.filter((name) => name.endsWith('.js')).map((name) => readFileSync(path.join(assets, name), 'utf8')).join('\n');
+  assert.doesNotMatch(javascript, /@jsquash\/webp|heic-to|wasm-feature-detect|webp_enc/);
 });

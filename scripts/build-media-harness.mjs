@@ -1,0 +1,17 @@
+import { resolve } from 'node:path';
+import { build } from 'vite';
+
+const root = resolve('tests/browser/image-harness');
+const output = resolve('dist/fixture/site/__task2');
+
+await build({
+  configFile: false,
+  root,
+  base: '/__task2/',
+  publicDir: resolve('tests/fixtures/media'),
+  build: {
+    outDir: output,
+    emptyOutDir: true,
+    rollupOptions: { input: resolve(root, 'index.html') },
+  },
+});
