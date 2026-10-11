@@ -14,7 +14,6 @@ export default defineConfig([
     ],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
@@ -30,7 +29,27 @@ export default defineConfig([
     extends: [reactRefresh.configs.vite],
   },
   {
-    files: ['scripts/**/*.mjs', 'tests/unit/**/*.mjs'],
+    files: ['src/**/*.{js,jsx}', 'tests/browser/**/*.{js,jsx,mjs}'],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+  {
+    files: [
+      'scripts/**/*.mjs',
+      'tests/unit/**/*.mjs',
+      'tests/legacy/**/*.mjs',
+      'tests/db/**/*.mjs',
+      'server/**/*.mjs',
+      'netlify/functions/**/*.mjs',
+      '*.config.{js,mjs,cjs}',
+    ],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['tests/browser/**/*.{js,jsx,mjs}'],
     languageOptions: {
       globals: globals.node,
     },
