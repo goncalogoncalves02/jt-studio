@@ -49,6 +49,21 @@ function imageFile(kind, name = 'camera-upload.bin', type = '') {
   return new File([bytesFor(kind)], name, { type });
 }
 
+function topLevelBoxes(bytes) {
+  const result = [];
+  for (let offset = 0; offset + 8 <= bytes.length;) {
+    const size32 = bytes.readUInt32BE(offset);
+    const type = bytes.toString('ascii', offset + 4, offset + 8);
+    const headerSize = size32 === 1 ? 16 : 8;
+    const size = size32 === 1 ? Number(bytes.readBigUInt64BE(offset + 8)) : size32 === 0 ? bytes.length - offset : size32;
+    if (size < headerSize || size > bytes.length - offset) throw new Error('Invalid test fixture box');
+    result.push({ offset, type, size, headerSize });
+    offset += size;
+    if (size32 === 0) break;
+  }
+  return result;
+}
+
 function u16(value) { return new Uint8Array([value >> 8, value & 0xff]); }
 function u32(value) { return new Uint8Array([value >>> 24, value >>> 16, value >>> 8, value]); }
 function join(...parts) { const output = new Uint8Array(parts.reduce((n, part) => n + part.length, 0)); let offset = 0; for (const part of parts) { output.set(part, offset); offset += part.length; } return output; }
@@ -127,7 +142,7 @@ test('publishes the approved responsive image policy', () => {
   assert.equal(contract.MAX_INPUT_BYTES, 30 * 1024 * 1024);
   assert.equal(contract.MAX_DIMENSION, 12000);
   assert.equal(contract.MAX_PIXELS, 60_000_000);
-  assert.deepEqual(contract.VARIANT_LONG_SIDES, [480, 960, 1600]);
+  assert.deepEqual(contract.VARIANT_WIDTHS, [480, 960]);
   assert.equal(contract.MASTER_MAX_LONG_SIDE, 1600);
   assert.equal(contract.INITIAL_QUALITY, 0.84);
   assert.equal(contract.MIN_QUALITY, 0.78);
@@ -152,15 +167,38 @@ test('rejects malformed HEIF property boxes and oversized primary dimensions bef
   await assert.rejects(validateInputImage(heifFile({ width: 32, height: 24, tile: 12_001 })), /12 000|megapíxeis|limite/i);
 });
 
+test('rejects duplicate HEIF metadata after media data and out-of-file box bounds', async () => {
+  const validateInputImage = requireExport(processing, 'validateInputImage');
+  const original = Buffer.from(await readFile('tests/fixtures/media/iphone-xr-original.HEIC'));
+  const top = topLevelBoxes(original);
+  const meta = top.find((entry) => entry.type === 'meta');
+  const media = top.find((entry) => entry.type === 'mdat');
+  assert.ok(meta && media);
+  assert.ok(original.length > 1024 * 1024);
+  const duplicateMeta = Buffer.from(original.subarray(meta.offset, meta.offset + meta.size));
+  const rotation = duplicateMeta.indexOf(Buffer.from('irot'));
+  assert.notEqual(rotation, -1);
+  duplicateMeta[rotation + 4] = 1;
+  const ambiguous = Buffer.concat([original, duplicateMeta]);
+  await assert.rejects(validateInputImage(new File([ambiguous], 'duplicate-meta.HEIC')), /HEIF|metadados|ambígu/i);
+
+  const outOfBounds = Buffer.from(original);
+  assert.equal(outOfBounds.readUInt32BE(media.offset), 1);
+  outOfBounds.writeBigUInt64BE(BigInt(outOfBounds.length - media.offset + 1), media.offset + 8);
+  await assert.rejects(validateInputImage(new File([outOfBounds], 'truncated-box.HEIC')), /HEIF|metadados|inválid/i);
+});
+
 test('caps the long side and emits unique proportional output dimensions', () => {
   const masterDimensions = requireExport(contract, 'getMasterDimensions');
   const buildVariants = requireExport(contract, 'buildVariantDimensions');
   assert.deepEqual(masterDimensions(3024, 4032), { width: 1200, height: 1600 });
   assert.deepEqual(masterDimensions(8, 12_000), { width: 1, height: 1600 });
-  assert.deepEqual(buildVariants(72, 48), [{ width: 72, height: 48, longSide: 72, targetBytes: 128 * 1024 }]);
+  assert.deepEqual(buildVariants(72, 48), [{ width: 72, height: 48, targetBytes: 128 * 1024 }]);
   assert.deepEqual(buildVariants(640, 480), [
-    { width: 480, height: 360, longSide: 480, targetBytes: 128 * 1024 },
-    { width: 640, height: 480, longSide: 640, targetBytes: 256 * 1024 },
+    { width: 480, height: 360, targetBytes: 128 * 1024 },
+    { width: 640, height: 480, targetBytes: 256 * 1024 },
   ]);
-  assert.deepEqual(buildVariants(1200, 1600).map(({ width, height }) => [width, height]), [[360, 480], [720, 960], [1200, 1600]]);
+  assert.deepEqual(buildVariants(1200, 1600).map(({ width, height }) => [width, height]), [[480, 640], [960, 1280], [1200, 1600]]);
+  assert.deepEqual(buildVariants(600, 800).map(({ width, height }) => [width, height]), [[480, 640], [600, 800]]);
+  assert.deepEqual(buildVariants(1, 1600).map(({ width, height }) => [width, height]), [[1, 1600]]);
 });

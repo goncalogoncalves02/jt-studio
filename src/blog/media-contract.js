@@ -2,7 +2,7 @@ export const MAX_INPUT_BYTES = 30 * 1024 * 1024;
 export const MAX_DIMENSION = 12_000;
 export const MAX_PIXELS = 60_000_000;
 export const MASTER_MAX_LONG_SIDE = 1600;
-export const VARIANT_LONG_SIDES = Object.freeze([480, 960, 1600]);
+export const VARIANT_WIDTHS = Object.freeze([480, 960]);
 export const INITIAL_QUALITY = 0.84;
 export const MIN_QUALITY = 0.78;
 export const UPLOAD_MAX_BYTES = 1024 * 1024;
@@ -31,17 +31,14 @@ export function getMasterDimensions(width, height) {
 
 export function buildVariantDimensions(width, height) {
   assertDimensions(width, height);
-  const longSide = Math.max(width, height);
-  const candidates = VARIANT_LONG_SIDES.map((requestedLongSide) => Math.min(requestedLongSide, longSide));
+  const candidates = [...VARIANT_WIDTHS.filter((requestedWidth) => requestedWidth <= width), width];
   const unique = [];
   const seen = new Set();
   for (const candidate of candidates) {
-    const scale = candidate / longSide;
-    const size = { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)), longSide: candidate };
-    const key = `${size.width}x${size.height}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(size);
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    const scale = candidate / width;
+    unique.push({ width: candidate, height: Math.max(1, Math.round(height * scale)) });
   }
   return unique.map((size, index) => ({ ...size, targetBytes: [128 * 1024, 256 * 1024, 512 * 1024][index] }));
 }

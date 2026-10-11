@@ -134,33 +134,15 @@ function parseAssociations(bytes, box, propertyList, itemMap) {
   if (offset !== box.end) fail();
 }
 
-function parseHeif(bytes) {
-  const budget = { count: MAX_BOXES };
-  const top = [];
-  let cursor = 0;
-  while (cursor + 8 <= bytes.length && budget.count > 0) {
-    budget.count -= 1;
-    let size = new DataView(bytes.buffer, bytes.byteOffset + cursor, bytes.length - cursor).getUint32(0);
-    const type = text(bytes, cursor + 4, cursor + 8);
-    let headerSize = 8;
-    if (size === 1) {
-      if (bytes.length - cursor < 16) fail();
-      const large = new DataView(bytes.buffer, bytes.byteOffset + cursor + 8, 8).getBigUint64(0);
-      if (large > BigInt(Number.MAX_SAFE_INTEGER)) fail();
-      size = Number(large); headerSize = 16;
-    } else if (size === 0) size = bytes.length - cursor;
-    if (size < headerSize) fail();
-    if (size > bytes.length - cursor) {
-      if (type === 'mdat' && top.some((box) => box.type === 'meta')) break;
-      fail();
-    }
-    top.push({ type, start: cursor, payload: cursor + headerSize, end: cursor + size, size, headerSize });
-    cursor += size;
-    if (type === 'meta') break;
-  }
-  if (budget.count <= 0) fail();
-  const ftyp = top.find((box) => box.type === 'ftyp');
+function parseHeifParts(bytes, top, topCount) {
+  const budget = { count: MAX_BOXES - topCount };
+  if (budget.count < 0) fail();
+  const ftyps = top.filter((box) => box.type === 'ftyp');
+  const metas = top.filter((box) => box.type === 'meta');
+  if (ftyps.length > 1 || metas.length > 1) fail();
+  const ftyp = ftyps[0];
   if (!ftyp || ftyp.end - ftyp.payload < 8) return null;
+  if (ftyp.size > MAX_HEADER_BYTES) fail();
   if ((ftyp.end - ftyp.payload - 8) % 4 !== 0) fail();
   const major = text(bytes, ftyp.payload, ftyp.payload + 4);
   const compatible = [];
@@ -168,8 +150,6 @@ function parseHeif(bytes) {
   const brands = [major, ...compatible];
   const format = brands.some((brand) => AVIF_BRANDS.has(brand)) ? 'avif' : brands.some((brand) => HEIC_BRANDS.has(brand)) ? (['heic', 'heix', 'hevc', 'hevx'].includes(major) ? 'heic' : 'heif') : null;
   if (!format) return null;
-  const metas = top.filter((box) => box.type === 'meta');
-  if (metas.length !== 1) fail();
   const meta = metas[0];
   if (!meta) fail();
   const metaInfo = fullBoxVersion(bytes, meta);
@@ -219,6 +199,77 @@ function parseHeif(bytes) {
   const width = quarterTurns % 2 ? cropHeight : cropWidth;
   const height = quarterTurns % 2 ? cropWidth : cropHeight;
   return { format, width, height, codedWidth, codedHeight, orientation: { quarterTurns, mirrorAxis, cleanAperture: Boolean(crops.length), primaryItemType: itemMap.get(primaryId).type } };
+}
+
+function parseHeif(bytes) {
+  const budget = { count: MAX_BOXES };
+  const top = [];
+  let cursor = 0;
+  while (cursor < bytes.length && budget.count > 0) {
+    if (bytes.length - cursor < 8) fail();
+    budget.count -= 1;
+    let size = new DataView(bytes.buffer, bytes.byteOffset + cursor, bytes.length - cursor).getUint32(0);
+    const type = text(bytes, cursor + 4, cursor + 8);
+    let headerSize = 8;
+    if (size === 1) {
+      if (bytes.length - cursor < 16) fail();
+      const large = new DataView(bytes.buffer, bytes.byteOffset + cursor + 8, 8).getBigUint64(0);
+      if (large > BigInt(Number.MAX_SAFE_INTEGER)) fail();
+      size = Number(large); headerSize = 16;
+    } else if (size === 0) size = bytes.length - cursor;
+    if (size < headerSize) fail();
+    if (size > bytes.length - cursor) fail();
+    top.push({ type, start: cursor, payload: cursor + headerSize, end: cursor + size, size, headerSize });
+    cursor += size;
+  }
+  if (cursor !== bytes.length || budget.count < 0) fail();
+  return parseHeifParts(bytes, top, MAX_BOXES - budget.count);
+}
+
+async function readBox(file, offset, size) {
+  const bytes = new Uint8Array(await file.slice(offset, offset + size).arrayBuffer());
+  if (bytes.length !== size) fail();
+  return bytes;
+}
+
+async function parseHeifFile(file) {
+  let cursor = 0; let count = 0; let ftypBytes; let metaBytes;
+  const records = [];
+  while (cursor < file.size) {
+    if (file.size - cursor < 8 || ++count > MAX_BOXES) fail();
+    const header = await readBox(file, cursor, 8);
+    let size = new DataView(header.buffer, header.byteOffset, header.byteLength).getUint32(0);
+    const type = text(header, 4, 8); let headerSize = 8;
+    if (size === 1) {
+      if (file.size - cursor < 16) fail();
+      const extended = await readBox(file, cursor + 8, 8);
+      const large = new DataView(extended.buffer, extended.byteOffset, 8).getBigUint64(0);
+      if (large > BigInt(Number.MAX_SAFE_INTEGER)) fail();
+      size = Number(large); headerSize = 16;
+    } else if (size === 0) size = file.size - cursor;
+    if (size < headerSize || size > file.size - cursor) fail();
+    const record = { type, start: cursor, payload: cursor + headerSize, end: cursor + size, size, headerSize };
+    if (type === 'ftyp') {
+      if (ftypBytes || size > MAX_HEADER_BYTES) fail();
+      ftypBytes = await readBox(file, cursor, size);
+      records.push({ ...record, start: 0, payload: headerSize, end: size });
+    } else if (type === 'meta') {
+      if (metaBytes || size > MAX_HEADER_BYTES) fail();
+      metaBytes = await readBox(file, cursor, size);
+      records.push(record);
+    }
+    cursor += size;
+  }
+  if (cursor !== file.size || !ftypBytes) return null;
+  const metaRecord = records.find((box) => box.type === 'meta');
+  if (!metaRecord || !metaBytes) return parseHeifParts(ftypBytes, records.filter((box) => box.type === 'ftyp'), count);
+  const bytes = new Uint8Array(ftypBytes.length + metaBytes.length);
+  bytes.set(ftypBytes); bytes.set(metaBytes, ftypBytes.length);
+  const localized = [
+    { ...records.find((box) => box.type === 'ftyp'), start: 0, payload: records.find((box) => box.type === 'ftyp').headerSize, end: ftypBytes.length },
+    { ...metaRecord, start: ftypBytes.length, payload: ftypBytes.length + metaRecord.headerSize, end: bytes.length },
+  ];
+  return parseHeifParts(bytes, localized, count);
 }
 
 function jpegHeader(bytes) {
@@ -286,8 +337,11 @@ export function parseImageHeader(bytes) {
 export async function validateInputImage(file) {
   if (!file || typeof file.slice !== 'function' || !Number.isFinite(file.size)) throw new MediaPipelineError('Escolha um ficheiro de imagem válido.');
   if (file.size > MAX_INPUT_BYTES) throw new MediaPipelineError('O ficheiro excede o limite de 30 MiB.');
-  const header = new Uint8Array(await file.slice(0, Math.min(file.size, MAX_HEADER_BYTES)).arrayBuffer());
-  const parsed = parseImageHeader(header);
+  const prefix = await readBox(file, 0, Math.min(file.size, 16));
+  const isIsoBmff = prefix.length >= 8 && text(prefix, 4, 8) === 'ftyp';
+  const parsed = isIsoBmff
+    ? await parseHeifFile(file)
+    : parseImageHeader(new Uint8Array(await file.slice(0, Math.min(file.size, MAX_HEADER_BYTES)).arrayBuffer()));
   if (!parsed) throw new MediaPipelineError('Formato de imagem não suportado ou ficheiro inválido.');
   const { width, height } = assertDimensions(parsed.width, parsed.height);
   return { ...parsed, width, height, size: file.size };

@@ -59,6 +59,23 @@ async function optimize(page) {
   });
 }
 
+function decoderRequests(requests) {
+  return requests.filter((url) => /\/heif-(?:codec|decoder)(?:[-./]|$)|\.wasm(?:\?|$)/i.test(new URL(url).pathname));
+}
+
+function topLevelBoxes(bytes) {
+  const result = []; let offset = 0;
+  while (offset + 8 <= bytes.length) {
+    let size = bytes.readUInt32BE(offset); const type = bytes.toString('latin1', offset + 4, offset + 8); let header = 8;
+    if (size === 1) { size = Number(bytes.readBigUInt64BE(offset + 8)); header = 16; }
+    else if (size === 0) size = bytes.length - offset;
+    if (size < header || size > bytes.length - offset) throw new Error(`Invalid ${type} box in test fixture`);
+    result.push({ type, offset, size }); offset += size;
+  }
+  if (offset !== bytes.length) throw new Error('Trailing bytes in test fixture');
+  return result;
+}
+
 test('serves the built media harness with an active worker pipeline', async ({ page }) => {
   const response = await page.goto('/__task2/');
   expect(response?.status()).toBe(200);
@@ -77,7 +94,7 @@ test('converts EXIF-rotated JPEG to proportional, metadata-free WebP variants', 
   await fixtureFile(page, 'oriented.jpg', 'application/octet-stream');
   const result = await optimize(page);
   expect(result.width).toBe(600); expect(result.height).toBe(800);
-  expect(result.variants.map(({ width, height }) => [width, height])).toEqual([[360, 480], [600, 800]]);
+  expect(result.variants.map(({ width, height }) => [width, height])).toEqual([[480, 640], [600, 800]]);
   expect(result.variants[1].probes[0][0]).toBeGreaterThan(result.variants[1].probes[0][2] * 1.8);
   expect(result.variants[1].probes[1][2]).toBeGreaterThan(result.variants[1].probes[1][0] * 1.8);
   expect(result.variants.every((v) => v.type === 'image/webp' && v.sha256.length === 64)).toBe(true);
@@ -110,14 +127,14 @@ test('fetches the HEIC decoder only when a HEIC image is processed and keeps dec
   await page.goto('/__task2/');
   await fixtureFile(page, 'oriented.jpg', 'application/octet-stream');
   await optimize(page);
-  const decoderBeforeHeic = requests.filter((url) => /heif-decoder|\.wasm(?:\?|$)/i.test(url));
+  const decoderBeforeHeic = decoderRequests(requests);
   expect(decoderBeforeHeic).toEqual([]);
   await fixtureFile(page, 'iphone-xr-original.HEIC');
   const heic = await optimize(page);
   expect(heic.width).toBe(4032);
-  const decoderRequests = requests.filter((url) => /heif-decoder|\.wasm(?:\?|$)/i.test(url));
-  expect(decoderRequests.length).toBeGreaterThan(0);
-  expect(decoderRequests.every((url) => url.startsWith('http://127.0.0.1:4173/'))).toBe(true);
+  const loadedDecoderRequests = decoderRequests(requests);
+  expect(loadedDecoderRequests.length).toBeGreaterThan(0);
+  expect(loadedDecoderRequests.every((url) => url.startsWith('http://127.0.0.1:4173/'))).toBe(true);
   expect(requests.every((url) => !/https?:\/\/(?!127\.0\.0\.1:4173)/i.test(url))).toBe(true);
 });
 
@@ -142,7 +159,40 @@ test('rejects an oversized HEIC primary before requesting or starting the decode
   });
   expect(rejection).toMatchObject({ name: 'Error' });
   expect(rejection.message).toMatch(/12 000|megapíxeis|limite/i);
-  expect(requests.filter((url) => /heic-to-|libheif/i.test(url))).toEqual([]);
+  expect(decoderRequests(requests)).toEqual([]);
+});
+
+test('rejects duplicate HEIF metadata after mdat before requesting the decoder', async ({ page }) => {
+  const requests = [];
+  page.context().on('request', (request) => requests.push(request.url()));
+  await page.goto('/__task2/');
+  const original = await readFile('tests/fixtures/media/iphone-xr-original.HEIC');
+  const boxes = topLevelBoxes(original); const meta = boxes.find(({ type }) => type === 'meta');
+  expect(boxes.at(-1).type).toBe('mdat');
+  const duplicate = Buffer.from(original.subarray(meta.offset, meta.offset + meta.size));
+  const rotation = duplicate.indexOf(Buffer.from('irot'));
+  expect(rotation).toBeGreaterThanOrEqual(0);
+  duplicate[rotation + 4] = 1;
+  const ambiguous = Buffer.concat([original, duplicate]);
+  await page.evaluate((encoded) => {
+    const binary = atob(encoded); const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    window.__imageFixture = new File([bytes], 'duplicate-meta-after-mdat.HEIC');
+  }, ambiguous.toString('base64'));
+  const rejection = await page.evaluate(async () => {
+    try { await window.imageProcessingHarness.optimizeImage(window.__imageFixture); return null; }
+    catch (error) { return { name: error.name, message: error.message }; }
+  });
+  expect(rejection).toMatchObject({ name: 'Error' });
+  expect(rejection.message).toMatch(/metadados|HEIF|inválid/i);
+  expect(decoderRequests(requests)).toEqual([]);
+
+  await fixtureFile(page, 'iphone-xr-original.HEIC');
+  const valid = await optimize(page);
+  expect(valid.width).toBe(4032);
+  const positiveDecoderRequests = decoderRequests(requests);
+  expect(positiveDecoderRequests.length).toBeGreaterThan(0);
+  expect(positiveDecoderRequests.every((url) => url.startsWith('http://127.0.0.1:4173/'))).toBe(true);
 });
 
 test('falls back to the real bundled WASM encoder for invalid native output and rejected native encoding', async ({ page }) => {
@@ -193,12 +243,12 @@ test('caps portrait master by long side, preserves ratio, and deduplicates tall 
   await fixtureFile(page, 'portrait-3024x4032.jpg', 'application/octet-stream');
   const portrait = await optimize(page);
   expect([portrait.width, portrait.height]).toEqual([3024, 4032]);
-  expect(portrait.variants.map(({ width, height }) => [width, height])).toEqual([[360, 480], [720, 960], [1200, 1600]]);
+  expect(portrait.variants.map(({ width, height }) => [width, height])).toEqual([[480, 640], [960, 1280], [1200, 1600]]);
   expect(portrait.variants.every(({ width, height }) => Math.max(width, height) <= 1600 && Math.min(width / height, height / width) > 0.74)).toBe(true);
 
   await fixtureFile(page, 'narrow-tall-10x12000.jpg', 'application/octet-stream');
   const narrow = await optimize(page);
-  expect(narrow.variants.map(({ width, height }) => [width, height])).toEqual([[1, 480], [1, 960], [1, 1600]]);
+  expect(narrow.variants.map(({ width, height }) => [width, height])).toEqual([[1, 1600]]);
 });
 
 test('converts the public iPhone XR HEIC through the real HEIC worker and records full-resolution quality artifacts', async ({ page }) => {
