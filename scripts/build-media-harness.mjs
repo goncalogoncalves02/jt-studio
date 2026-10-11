@@ -9,6 +9,7 @@ await build({
   root,
   base: '/__task2/',
   publicDir: resolve('tests/fixtures/media'),
+  worker: { format: 'es' },
   build: {
     outDir: output,
     emptyOutDir: true,

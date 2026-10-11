@@ -50,7 +50,7 @@ Estas escolhas concretizam a spec e foram aprovadas com o plano em 2026-10-11. A
 | `react-helmet-async` | 3.0.0 | Compatibilidade React 19/metadata | Apache-2.0 |
 | `@tiptap/core`, `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit` | 3.31.4 | Editor visual | MIT |
 | `@supabase/supabase-js` | 2.117.3 | Auth, dados e Storage no servidor | MIT |
-| `heic-to` | 1.6.6 | Decoder HEIC/HEIF, apenas no painel | LGPL-3.0 |
+| libheif + libde265 | 1.23.6 + 1.1.3 (explicit approved Task 2 amendment, 2026-10-11) | Locally generated lazy HEVC decoder ESM/WASM, pinned-source rebuild documented in `scripts/build-heif-codec/README.md` | LGPL-3.0 notices retained |
 | `@jsquash/webp` | 1.5.0 | Encoder WebP de fallback no painel | Apache-2.0 |
 | `sharp` | 0.35.5 | Validar WebP efetivamente descodificado no servidor | Apache-2.0 |
 | `parse5` | 8.0.1 | Composição/verificação estrutural do HTML no build | MIT |
@@ -60,7 +60,7 @@ Estas escolhas concretizam a spec e foram aprovadas com o plano em 2026-10-11. A
 | `supabase` | 2.120.0 | CLI de desenvolvimento local | MIT |
 | `netlify-cli` | 27.12.0 | Functions e redirects locais | MIT |
 
-Versões verificadas no registry em 2026-10-11; fixar exatamente as dependências novas. As ferramentas de teste/build são devDependencies; o SDK Supabase e `sharp` são dependências do servidor. Conferir e conservar os avisos/licenças dos pacotes e componentes distribuídos, incluindo o decoder LGPL. Esta lista foi autorizada com o plano; cada instalação efetiva e alteração ao lockfile são verificadas e registadas na tarefa correspondente.
+Versões verificadas no registry em 2026-10-11; fixar exatamente as dependências novas. As ferramentas de teste/build são devDependencies; o SDK Supabase e `sharp` são dependências do servidor. Conferir e conservar os avisos/licenças dos pacotes e componentes distribuídos, incluindo o decoder LGPL. A autorização posterior e explícita para substituir `heic-to` por libheif 1.23.6 + libde265 1.1.3 WASM aplica-se apenas à Task 2; a tabela regista esse amendment. Cada instalação efetiva e alteração ao lockfile são verificadas e registadas na tarefa correspondente.
 
 ### Sessão e gravação
 
@@ -150,17 +150,17 @@ Criar ficheiros apenas na tarefa que os necessita. Não fazer scaffolding vazio 
 
 ## Task 2: Pipeline de fotografias, incluindo iPhone
 
-**Files:** criar `src/blog/media-contract.js`, `image-processing.js`, `image-worker.js`, `tests/unit/media-policy.test.mjs`, `tests/browser/image-processing.spec.js`, fixtures de imagem com origem/licença identificadas; modificar manifest/lock só para heic-to e encoder WebP. Fotografias reais fornecidas para a prova ficam fora do Git.
+**Files:** criar `src/blog/media-contract.js`, `image-processing.js`, `image-worker.js`, o parser limitado `src/blog/media-header.js`, `src/blog/codecs/` (adapter C-API e artefactos ESM/WASM reproduzíveis), `scripts/build-heif-codec/`, `tests/unit/` e `tests/browser/` dedicados, e fixtures de imagem com origem/licença identificadas. O encoder WebP mantém `@jsquash/webp` 1.5.0; não se distribui decoder npm. O comando de rebuild é separado do build normal do site. Fotografias reais fornecidas para a prova ficam fora do Git.
 
 **Interfaces:** `optimizeImage(file, {signal, onProgress}) -> Promise<{pipelineVersion:1, variants:BlobVariant[]}>`; `validateInputImage(file) -> InputInfo`; `BlobVariant` tem blob WebP, largura/altura reais, tamanho e digest. Publicar as constantes de política em `media-contract.js`.
 
 - [ ] **1 — Escrever provas:** JPEG rodado, PNG com alpha, WebP pequeno, HEIC/HEIF sem MIME e AVIF; assert WebP descodificável, dimensões proporcionais, sem ampliação, sem EXIF/XMP e transparência preservada. `cancelled_image_never_attaches_to_another_article` cancela e muda de artigo antes do resultado. Um ficheiro inválido deve produzir erro legível, sem perder texto.
 - [ ] **2 — Executar RED:** `node --test tests/unit/media-policy.test.mjs` e `npm run test:browser -- tests/browser/image-processing.spec.js`; provar ausência de comportamento, não ausência de browser/fixture.
-- [ ] **3 — Implementar:** worker carregado por `new URL(..., import.meta.url)`, processamento sequencial e libertação de bitmaps/object URLs. Decoder HEIC/HEIF lazy através de `heic-to/next` no worker; encoder WebP nativo validado pelo MIME/bytes, fallback WASM empacotado localmente. Não buscar bibliotecas de um CDN durante a conversão. Interromper o worker em cancelamento/erro; conservar a geração do artigo que originou o pedido.
-- [ ] **4 — Verificar GREEN e qualidade:** executar os mesmos comandos em Chromium/WebKit; testar uma fotografia real do iPhone, incluindo cores/orientação e envio do mesmo ficheiro pelo desktop. Medir bytes/tempo/consumo e rever a proposta 0.84–0.78/1600 px sem degradar detalhes. Falta de amostra real fica como gate pendente, não como prova concluída por fixture sintética.
+- [ ] **3 — Implementar:** worker carregado por `new URL(..., import.meta.url)`, processamento sequencial e libertação de bitmaps/object URLs. O decoder HEIC/HEIF ESM/WASM gerado localmente a partir das versões corrigidas aprovadas de libheif/libde265 só é carregado ao processar HEIC/HEIF; a validação limitada resolve a imagem primária e rejeita metadados inválidos/ambíguos antes da alocação do decoder. Encoder WebP nativo validado por MIME e assinatura RIFF, com fallback WASM empacotado localmente. Não buscar bibliotecas de CDN durante conversão. Interromper o worker em cancelamento/erro; conservar a geração do artigo que originou o pedido.
+- [ ] **4 — Verificar GREEN e qualidade:** executar os comandos focados em Chromium e WebKit sobre o worker/decoder realmente compilados; provar carregamento local lazy, imagem primária, dados malformados/limites, orientação, fallback, cancelamento, cap do lado maior e dimensões únicas. Medir bytes/tempo e comparar a imagem WebP completa com a referência descodificada a resolução igual. Uma imagem pública de câmara é evidência de uma amostra; qualidade de retratos/detalhe, memória máxima e Safari num iPhone físico continuam gates próprios.
 - [ ] **5 — Autorrevisão e commit:** registar perfil validado e licenças no runbook; commit assinado+DCO `feat: optimize uploaded photos to responsive WebP variants`.
 
-**Gate:** aprovação de dependências deste plano inclui o decoder LGPL; se não for aceite ou não passar a prova, o coordenador revê a solução antes do restante editor.
+**Gate:** o amendment explícito de 2026-10-11 aprova o build reprodutível de libheif 1.23.6 + libde265 1.1.3 nesta Task 2. Manter source commits/hashes, notices completos, identidade do compiler e hashes dos outputs; o build só é reproduzível byte a byte se hashes de duas execuções concordarem. Não alegar reprodução do advisory nativo no browser, pico de memória ou aceitação de device. A aceitação da Task 2 continua a cargo da revisão independente do coordenador.
 
 ## Task 3: Modelo editorial, RLS e composição imutável
 
@@ -307,7 +307,7 @@ A execução local deste plano foi aprovada em 2026-10-11. Executar as tarefas p
 - [Vite 7 SSR](https://v7.vite.dev/guide/ssr)
 - [React Router StaticRouter](https://reactrouter.com/api/declarative-routers/StaticRouter), API declarativa mantida na v7 existente; confirmar export da versão instalada na Task 1.
 - [Helmet 3 e React 19](https://github.com/staylor/react-helmet-async#react-19)
-- [HEIC decoder](https://github.com/hoppergee/heic-to), versão/licença conferidas no registry.
+- [libheif v1.23.6](https://github.com/strukturag/libheif/tree/v1.23.6), [libde265 v1.1.3](https://github.com/strukturag/libde265/tree/v1.1.3), e [Emscripten Docker guidance](https://emscripten.org/docs/building_from_source/using_docker.html); a build e os artefactos Task 2 têm provenance/licenças documentadas no runbook.
 - [Netlify Functions runtime](https://docs.netlify.com/build/functions/configuration)
 - [Netlify build variables](https://docs.netlify.com/build/configure-builds/environment-variables/)
 - [Netlify CLI dev](https://cli.netlify.com/commands/dev/)
