@@ -2,11 +2,10 @@
 
 Última revisão: 2026-10-11.
 
-**Estado:** revisão escrita aprovada pelo utilizador em 2026-10-11. A feature ainda
-não está implementada. O [plano de implementação](superpowers/plans/2026-10-11-blog-editorial.md)
-está preparado e aguarda revisão do utilizador. A aprovação desta spec permite
-preparar esse plano; não equivale à aprovação da execução, integração ou publicação
-em produção.
+**Estado:** spec e [plano de implementação](superpowers/plans/2026-10-11-blog-editorial.md)
+aprovados pelo utilizador em 2026-10-11. A implementação local está em curso na branch
+`feature/blog-editorial`, numa worktree isolada. A feature ainda não está concluída.
+Push, PR, merge e deploy continuam a exigir autorização explícita.
 
 Esta revisão substitui a proposta de 2026-09-15 do branch
 `claude/awesome-hamilton-xizq67`. Conserva o objetivo de gerar HTML estático indexável,
@@ -341,8 +340,9 @@ Nenhum destes critérios está marcado como cumprido nesta revisão documental.
 7. Confirmação do conjunto, hook protegido e reconciliação com o deploy real.
 8. Gate integrado, revisão, documentação operacional e decisão de integração pelo utilizador.
 
-Esta sequência orienta o próximo plano, não é autorização de execução. Só um implementador
-de cada vez, com os modelos e limites definidos em `AGENTS.md`.
+Esta sequência foi concretizada no plano de implementação aprovado em 2026-10-11.
+A execução local segue esse plano, com um implementador de cada vez e os modelos e
+limites definidos em `AGENTS.md`. Integração e deploy não estão autorizados.
 
 Antes da execução, fechar no plano: técnica SSG comprovada, decoder/encoder de imagens,
 política de dimensões/bytes, mecanismo/duração da sessão, mecanismo de serialização e

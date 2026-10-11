@@ -8,7 +8,7 @@
 
 **Tech Stack:** JavaScript/JSX, React 19.2.6, React Router 7.15.0, Tailwind 4.3.0, rolldown-vite 7.2.5, Tiptap, Supabase, Netlify Functions, Node Test Runner e Playwright.
 
-**Spec:** [docs/blog-spec.md](../../blog-spec.md), revisão escrita aprovada pelo utilizador em 2026-10-11. Este plano aguarda revisão e aprovação; nenhum passo de implementação foi executado.
+**Spec:** [docs/blog-spec.md](../../blog-spec.md), revisão escrita aprovada pelo utilizador em 2026-10-11. O utilizador aprovou também este plano e a execução local em 2026-10-11. Implementação em curso na branch `feature/blog-editorial`; o estado e a evidência de cada tarefa ficam no ledger ignorado `.superpowers/sdd/2026-10-11-blog-editorial/progress.md`. Push, PR, merge e deploy não estão autorizados.
 
 ## Global Constraints
 
@@ -34,9 +34,9 @@
 4. Hook com resposta perdida e deploy de código concorrente: não repetir cegamente nem publicar conteúdo antigo depois do novo (Task 8).
 5. Conteúdo estranho: `</script>`, links perigosos, media alheio, ficheiros truncados e URLs de posts retirados; não executar conteúdo nem servir uma falsa página de artigo (Tasks 3, 5 e 6).
 
-## 1. Decisões propostas neste plano
+## 1. Decisões aprovadas neste plano
 
-Estas escolhas concretizam a spec e ficam abrangidas pela revisão do plano, antes de instalar ou alterar dependências.
+Estas escolhas concretizam a spec e foram aprovadas com o plano em 2026-10-11. As versões novas continuam sujeitas às provas de compatibilidade previstas nas tarefas.
 
 ### Runtime, pre-render e dependências
 
@@ -60,7 +60,7 @@ Estas escolhas concretizam a spec e ficam abrangidas pela revisão do plano, ant
 | `supabase` | 2.120.0 | CLI de desenvolvimento local | MIT |
 | `netlify-cli` | 27.12.0 | Functions e redirects locais | MIT |
 
-Versões verificadas no registry em 2026-10-11; fixar exatamente as dependências novas. As ferramentas de teste/build são devDependencies; o SDK Supabase e `sharp` são dependências do servidor. Conferir e conservar os avisos/licenças dos pacotes e componentes distribuídos, incluindo o decoder LGPL. Esta lista é uma proposta de dependências, não uma instalação já autorizada/executada.
+Versões verificadas no registry em 2026-10-11; fixar exatamente as dependências novas. As ferramentas de teste/build são devDependencies; o SDK Supabase e `sharp` são dependências do servidor. Conferir e conservar os avisos/licenças dos pacotes e componentes distribuídos, incluindo o decoder LGPL. Esta lista foi autorizada com o plano; cada instalação efetiva e alteração ao lockfile são verificadas e registadas na tarefa correspondente.
 
 ### Sessão e gravação
 
@@ -90,7 +90,7 @@ Ferramentas de delegação expõem `gpt-6.1-sol`/high, `gpt-6-luna`/high e `gpt-
 
 Antes da Task 1, criar/reutilizar uma worktree de implementação baseada no commit de documentação aprovado, numa branch `feature/blog-editorial`. Manter a branch de documentação e o ficheiro original do utilizador. O coordenador entrega a cada tarefa a spec, contratos deste plano e o estado atual; não o histórico integral. Reutilizar a sessão CLI apenas para corrigir/continuar essa mesma tarefa.
 
-Os contextos Docker `desktop-linux` e `default` não têm daemon acessível. As Tasks 1–2 podem começar sem a base local; **Task 3 e gates de backend aguardam um daemon ou ambiente isolado explicitamente acordado**. Não iniciar serviços do sistema nem usar o projeto cloud como substituto automático dos testes locais.
+Na preparação inicial, Docker não estava acessível. Em 2026-10-11, o contexto `desktop-linux` passou a responder com daemon 29.8.0. O inventário protegido foi guardado em `/tmp/jt-studio-protected-docker-20261011.json`; nenhum container foi iniciado nesta preparação. Antes da Task 3, revalidar disponibilidade, portas e recursos e registar o runtime isolado no runbook. Não iniciar serviços do sistema nem usar o projeto cloud como substituto automático dos testes locais.
 
 Antes de iniciar containers, o runbook da Task 1 inventaria recursos/portas e identifica os protegidos. Proposta de runtime: projeto Supabase local `jt-studio-blog-tests`, API 54341, DB 54342, Studio 54343, mail 54344. Reservar as restantes portas a partir do `config.toml` efetivamente gerado pela CLI. Usar apenas esse projeto para fixtures/reset. Não fazer prune, apagar volumes ou parar serviços alheios.
 
@@ -300,7 +300,7 @@ O plano Free Supabase e disponibilidade do Storage continuam um risco operaciona
 | 8: HTML, metadata, sitemap, navegação | 1, 6, 10 |
 | 9–10: gates, ordem, recursos e integração | todas, com gate final 10 |
 
-Não instalar dependências, iniciar implementador, alterar cloud ou arrancar containers por esta leitura. A próxima ação é a revisão do plano pelo utilizador. O método de execução mantém-se o de AGENTS.md; não pedir ao utilizador para escolher novamente modelos já definidos.
+A execução local deste plano foi aprovada em 2026-10-11. Executar as tarefas pela ordem prevista, com revisão e verificações antes da aceitação de cada uma. Ações cloud seguem a preparação concreta da Task 10; push, PR, merge e deploy exigem autorização explícita. O método e os modelos de `AGENTS.md` mantêm-se.
 
 ## 8. Referências técnicas consultadas
 
