@@ -9,7 +9,7 @@ export class AdminApiError extends Error {
   }
 }
 
-async function responseData(response, expectedEpoch) {
+async function responseData(response, expectedEpoch, onUnauthorized) {
   let body;
   try { body = await response.json(); } catch { body = null; }
   if (expectedEpoch !== undefined && expectedEpoch !== sessionEpoch()) {
@@ -17,7 +17,9 @@ async function responseData(response, expectedEpoch) {
   }
   if (!response.ok) {
     const failure = body?.error;
-    throw new AdminApiError(response.status, failure?.code ?? 'BLOG_SERVICE_UNAVAILABLE', failure?.message ?? 'The admin service is temporarily unavailable.');
+    const error = new AdminApiError(response.status, failure?.code ?? 'BLOG_SERVICE_UNAVAILABLE', failure?.message ?? 'The admin service is temporarily unavailable.');
+    if (response.status === 401) onUnauthorized?.();
+    throw error;
   }
   return body;
 }
@@ -54,8 +56,7 @@ export async function adminFetch(path, options = {}, { epoch = sessionEpoch(), s
     signal: signal ?? options.signal,
   });
   if (epoch !== sessionEpoch()) throw new DOMException('The admin session changed during this request.', 'AbortError');
-  if (response.status === 401) clearSession(epoch, 'reauth-required');
-  return responseData(response, epoch);
+  return responseData(response, epoch, () => clearSession(epoch, 'reauth-required'));
 }
 
 export async function getSession(options = {}) {

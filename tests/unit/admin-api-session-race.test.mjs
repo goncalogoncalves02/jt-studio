@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { adminFetch } from '../../src/admin/api.js';
+import { AdminApiError, adminFetch } from '../../src/admin/api.js';
 import { clearSession, getSessionState, sessionEpoch, setSession, subscribeSession } from '../../src/admin/session.js';
 
 test('adminFetch never sends a mutation under a session that replaced its captured epoch while loading CSRF', async () => {
@@ -71,6 +71,30 @@ test('adminFetch rejects a response body that resolves after the captured sessio
     await assert.rejects(pending, error => error.name === 'AbortError');
     assert.equal(getSessionState().user.id, 'replacement-user');
   } finally {
+    globalThis.fetch = originalFetch;
+    clearSession(sessionEpoch());
+  }
+});
+
+test('a current-session 401 clears that session and preserves its API error status and code', async () => {
+  const originalFetch = globalThis.fetch;
+  const initialEpoch = sessionEpoch();
+  clearSession(initialEpoch);
+  const capturedEpoch = sessionEpoch();
+  setSession({ user: { id: 'current-user' }, csrfToken: 'current-csrf', expiresAt: 'later' }, capturedEpoch);
+  const requestEpoch = sessionEpoch();
+  const events = [];
+  const unsubscribe = subscribeSession(event => events.push(event));
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: 'BLOG_AUTH_REQUIRED', message: 'Sign in to continue.' } }), {
+    status: 401, headers: { 'content-type': 'application/json' },
+  });
+  try {
+    await assert.rejects(adminFetch('/api/admin/posts', {}, { epoch: requestEpoch }), error =>
+      error instanceof AdminApiError && error.status === 401 && error.code === 'BLOG_AUTH_REQUIRED');
+    assert.equal(getSessionState(), null);
+    assert.deepEqual(events.map(event => event.reason), ['reauth-required']);
+  } finally {
+    unsubscribe();
     globalThis.fetch = originalFetch;
     clearSession(sessionEpoch());
   }

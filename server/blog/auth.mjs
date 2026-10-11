@@ -200,8 +200,9 @@ async function refreshTokens(config, serviceClient, session) {
     authExpiresAt: new Date(expirationSeconds(refreshed) * 1000).toISOString(),
     tokenCiphertext: encryptTokens(refreshed, config.encryptionKey),
   });
-  if (!completed || completed.generation !== Number(session.generation) + 1) throw new BlogAuthError(401);
-  return { tokens: refreshed, generation: completed.generation, user: refreshedUser };
+  const completedGeneration = Number(completed);
+  if (!Number.isSafeInteger(completedGeneration) || completedGeneration !== Number(session.generation) + 1) throw new BlogAuthError(401);
+  return { tokens: refreshed, generation: completedGeneration, user: refreshedUser };
 }
 
 export async function login({ email, password }, request, options = {}) {
@@ -313,6 +314,21 @@ export async function requireAdmin(request, { mutation = false, csrfToken, forLo
   } else {
     user = await verifiedAuthUser(config, tokens);
     assertSessionIdentity(user, tokens, session.user_id, session.auth_session_id);
+  }
+
+  const expectedGeneration = generation;
+  const currentSession = await findAdminSession(serviceClient, cookieDigest(cookieValue));
+  const revalidatedAt = (typeof options.now === 'function' ? options.now() : new Date()).valueOf();
+  const currentExpiry = Date.parse(currentSession?.expires_at);
+  if (!currentSession
+      || currentSession.session_id !== session.session_id
+      || currentSession.user_id !== session.user_id
+      || currentSession.user_id !== config.ownerId
+      || currentSession.auth_session_id !== session.auth_session_id
+      || Number(currentSession.generation) !== expectedGeneration
+      || currentSession.refresh_claim_id
+      || !Number.isFinite(currentExpiry) || currentExpiry <= revalidatedAt) {
+    throw new BlogAuthError(401);
   }
 
   return {

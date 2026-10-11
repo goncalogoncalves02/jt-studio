@@ -193,3 +193,57 @@ test('logout can revoke an app session when encrypted Auth credentials cannot be
   await logout(auth, { fetchImpl: async () => { events.push('auth-signout'); throw new Error('Auth must be skipped for invalid ciphertext'); } });
   assert.deepEqual(events, ['blog_admin_session_lookup', 'blog_admin_session_revoke']);
 });
+
+test('requireAdmin rejects a verification response after the app session expires', async () => {
+  const { requireAdmin } = await import('../../server/blog/auth.mjs');
+  const userId = '3010b4ba-15c6-4826-a0df-e7f10fc3ca76';
+  const authSessionId = 'c74277a8-32af-4556-8c53-e46c596abdc9';
+  const now = Date.now();
+  const authExpiresAt = Math.floor(now / 1000) + 3600;
+  const accessToken = `header.${Buffer.from(JSON.stringify({ sub: userId, session_id: authSessionId, exp: authExpiresAt })).toString('base64url')}.signature`;
+  const cookie = createSessionCookie(new Date(now));
+  const stored = {
+    session_id: '2f313aa4-5d8c-4be2-a5ce-e7ed3b577ad7',
+    user_id: userId,
+    auth_session_id: authSessionId,
+    generation: 3,
+    expires_at: new Date(now + 250).toISOString(),
+    token_ciphertext: encryptTokens({ access_token: accessToken, refresh_token: 'refresh-fixture', expires_at: authExpiresAt }, key),
+    refresh_claim_id: null,
+  };
+  const config = {
+    supabaseUrl: 'http://127.0.0.1:54341', anonKey: 'anon-key-for-test', encryptionKey: key,
+    appOrigin: 'https://editor.example.test', ownerId: userId, refreshBeforeSeconds: 120,
+  };
+  let lookupCount = 0;
+  const serviceClient = { rpc: async name => {
+    assert.equal(name, 'blog_admin_session_lookup');
+    lookupCount += 1;
+    return { data: Date.parse(stored.expires_at) > Date.now() ? { ...stored } : null, error: null };
+  } };
+  const originalFetch = globalThis.fetch;
+  let releaseVerification;
+  let markVerificationStarted;
+  const verificationStarted = new Promise(resolve => { markVerificationStarted = resolve; });
+  const heldVerification = new Promise(resolve => { releaseVerification = resolve; });
+  globalThis.fetch = async input => {
+    assert.equal(new URL(input).pathname, '/auth/v1/user');
+    markVerificationStarted();
+    return heldVerification;
+  };
+  const request = new Request('https://editor.example.test/api/admin/session', {
+    headers: { cookie: `__Host-jt_admin=${cookie.value}` },
+  });
+  try {
+    const pending = requireAdmin(request, {}, { config, serviceClient });
+    await verificationStarted;
+    while (Date.now() <= Date.parse(stored.expires_at)) await new Promise(resolve => setTimeout(resolve, 10));
+    releaseVerification(new Response(JSON.stringify({ id: userId, app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: new Date(now).toISOString() }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    }));
+    await assert.rejects(pending, error => error.status === 401 && error.code === 'BLOG_AUTH_REQUIRED');
+    assert.equal(lookupCount, 2, 'the original cookie digest is looked up again after Auth verification');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

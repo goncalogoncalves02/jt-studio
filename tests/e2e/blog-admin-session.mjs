@@ -24,6 +24,15 @@ let phase = 'setup';
 
 function check(condition, stage) { if (!condition) { const error = new Error(stage); error.stage = stage; throw error; } }
 function headers(key, token = key) { return { apikey: key, authorization: `Bearer ${token}` }; }
+async function waitForDatabaseExpiry(db, expiresAt, stage) {
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline) {
+    const result = await db.query('select clock_timestamp() >= $1::timestamptz as expired', [expiresAt]);
+    if (result.rows[0]?.expired === true) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  check(false, `${stage}-database-expiry-not-reached`);
+}
 async function jsonRequest(url, options = {}) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(10000) });
   let body;
@@ -135,6 +144,11 @@ export async function runSessionProof() {
   let heldSessionResponse;
   let authUnavailable = false;
   let authLogoutUnavailable = false;
+  let holdNextUserVerification = false;
+  let userVerificationSeen;
+  let notifyUserVerificationSeen;
+  let userVerificationGate;
+  let releaseUserVerification;
   let ambiguousRefreshResponse = false;
   let ambiguousAuthRotationConfirmed = false;
   let externalAuthCalls = [];
@@ -162,6 +176,11 @@ export async function runSessionProof() {
       const path = new URL(request.url, `http://127.0.0.1:${apiBoundaryPort}`).pathname;
       if (path.startsWith('/auth/v1/')) {
         externalAuthCalls.push(path);
+        if (path === '/auth/v1/user' && holdNextUserVerification) {
+          holdNextUserVerification = false;
+          notifyUserVerificationSeen?.();
+          await userVerificationGate;
+        }
         if (path === '/auth/v1/token' && new URL(request.url, `http://127.0.0.1:${apiBoundaryPort}`).search === '?grant_type=refresh_token') physicalRefreshRequests += 1;
         if (path === '/auth/v1/token' && new URL(request.url, `http://127.0.0.1:${apiBoundaryPort}`).search === '?grant_type=refresh_token' && holdNextRefresh) {
           holdNextRefresh = false;
@@ -243,6 +262,14 @@ export async function runSessionProof() {
     const openssl = spawn('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' });
     await new Promise((resolveExit, reject) => { openssl.once('error', reject); openssl.once('exit', code => code === 0 ? resolveExit() : reject(new Error('local-test-certificate'))); });
     const tls = { key: await readFile(key), cert: await readFile(cert) };
+    const redirectProbe = createHttpServer((request, response) => {
+      request.resume();
+      response.writeHead(302, { location: '/redirect-target', 'cache-control': 'no-store' });
+      response.end('redirect-probe');
+    });
+    await new Promise((resolveReady, reject) => { redirectProbe.once('error', reject); redirectProbe.listen(0, '127.0.0.1', resolveReady); });
+    httpsServers.push(redirectProbe);
+    const redirectProbePort = redirectProbe.address().port;
     const makeEdge = () => createHttpsServer(tls, async (request, response) => {
       if (request.url === '/') {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
@@ -265,12 +292,14 @@ export async function runSessionProof() {
       }
       const upstreamHeaders = { ...request.headers };
       for (const name of ['host', 'connection', 'transfer-encoding', 'x-netlify-original-pathname', 'x-netlify-original-search', 'x-nf-function-name', 'x-nf-function-route']) delete upstreamHeaders[name];
-      const functionPort = isSession ? 8889 : appPort;
+      const isRedirectProbe = request.url === '/__task4_redirect_probe';
+      const functionPort = isSession ? 8889 : isRedirectProbe ? redirectProbePort : appPort;
       const upstream = await fetch(`http://127.0.0.1:${functionPort}${request.url}`, {
         method: request.method, headers: upstreamHeaders,
         body: ['GET', 'HEAD'].includes(request.method) ? undefined : request,
         duplex: ['GET', 'HEAD'].includes(request.method) ? undefined : 'half',
         signal: AbortSignal.timeout(20000),
+        redirect: 'manual',
       });
       const setCookies = upstream.headers.getSetCookie?.() ?? [];
       const responseBytes = Buffer.from(await upstream.arrayBuffer());
@@ -302,6 +331,8 @@ export async function runSessionProof() {
     const edgeServer = makeEdge();
     await new Promise((resolveReady, reject) => { edgeServer.once('error', reject); edgeServer.listen(8443, '127.0.0.1', resolveReady); });
     httpsServers.push(edgeServer);
+    const redirectProbeResult = await httpsJsonRequest(`${browserOrigin}/__task4_redirect_probe`);
+    check(redirectProbeResult.status === 302 && redirectProbeResult.headers.location === '/redirect-target' && redirectProbeResult.body === null, 'https-edge-preserves-upstream-redirect-without-following');
 
     phase = 'custom-function-routing-probe';
     const actionBody = '{"action":"unknown"}';
@@ -358,9 +389,42 @@ export async function runSessionProof() {
     check(!cookies.some(item => /access|refresh|token/i.test(item.name)), 'browser-token-cookie-absence');
     check((await page.evaluate(() => Object.keys(localStorage).length + Object.keys(sessionStorage).length)) === 0, 'browser-token-storage-absence');
 
-    const appSession = await db.query('select session_id from blog_private.admin_sessions where user_id=$1 and revoked_at is null order by created_at desc limit 1', [ownerId]);
+    let appSession = await db.query('select session_id from blog_private.admin_sessions where user_id=$1 and revoked_at is null order by created_at desc limit 1', [ownerId]);
     check(appSession.rowCount === 1, 'app-session-created');
     fixtureSessions.push(appSession.rows[0].session_id);
+    phase = 'auth-verification-session-revalidation';
+    let markUserVerificationSeen;
+    userVerificationSeen = new Promise(resolveSeen => { markUserVerificationSeen = resolveSeen; });
+    let releaseVerification;
+    userVerificationGate = new Promise(resolveGate => { releaseVerification = resolveGate; });
+    releaseUserVerification = releaseVerification;
+    notifyUserVerificationSeen = markUserVerificationSeen;
+    holdNextUserVerification = true;
+    const pendingVerification = httpsJsonRequest(`${browserOrigin}/api/admin/session`, {
+      method: 'GET', headers: { cookie: `${cookie.name}=${cookie.value}`, accept: 'application/json' },
+    });
+    await Promise.race([userVerificationSeen, new Promise((_, reject) => setTimeout(() => reject(new Error('held-auth-user-verification-not-reached')), 8000))]);
+    const expiresWhileVerifying = await db.query("update blog_private.admin_sessions set expires_at=clock_timestamp()+interval '150 milliseconds' where session_id=$1 and revoked_at is null and expires_at>clock_timestamp() returning expires_at", [appSession.rows[0].session_id]);
+    check(expiresWhileVerifying.rowCount === 1, 'verification-expiry-fixture-installed-after-auth-request-started');
+    await waitForDatabaseExpiry(db, expiresWhileVerifying.rows[0].expires_at, 'auth-verification-expiry');
+    releaseVerification();
+    const verifiedAfterExpiry = await pendingVerification;
+    check(verifiedAfterExpiry.status === 401 && !verifiedAfterExpiry.headers['set-cookie'] && !verifiedAfterExpiry.headers.location, 'function-rejects-session-expired-during-real-auth-verification');
+    const expiredVerificationClientState = await page.evaluate(async () => ({ session: await window.blogSession.getSession(), state: window.blogSession.getSessionState() }));
+    check(expiredVerificationClientState.session === null && expiredVerificationClientState.state === null, 'verification-expiry-clears-stale-client-session');
+    check((await page.evaluate(() => window.sessionChangeReasons.at(-1))) === 'reauth-required', 'verification-expiry-reason-requires-reauth');
+    const verificationRecovery = await page.evaluate(async ({ email, password }) => {
+      try { await window.blogSession.login({ email, password }); return true; } catch { return false; }
+    }, { email: fixtureEmail, password: fixturePassword });
+    check(verificationRecovery, 'login-after-verification-expiry');
+    cookie = (await context.cookies(browserOrigin)).find(item => item.name === '__Host-jt_admin');
+    appSession = await db.query('select session_id from blog_private.admin_sessions where user_id=$1 and revoked_at is null and expires_at>clock_timestamp() order by created_at desc limit 1', [ownerId]);
+    check(appSession.rowCount === 1 && appSession.rows[0].session_id !== fixtureSessions[0], 'replacement-app-session-after-verification-expiry');
+    fixtureSessions.push(appSession.rows[0].session_id);
+    notifyUserVerificationSeen = null;
+    userVerificationSeen = null;
+    releaseUserVerification = null;
+    phase = 'browser-cookie-and-authenticated-read';
     let csrf = await page.evaluate(async () => {
       const response = await fetch('/api/admin/session', { credentials: 'same-origin', cache: 'no-store' });
       return { status: response.status, body: await response.json() };
@@ -436,11 +500,27 @@ export async function runSessionProof() {
       return session?.user?.id ?? null;
     });
     check(secondTabSession === csrf.body.user.id, 'reopened-tab-loads-session-and-initializes-coordination');
-    const storedTokens = await db.query('select generation, token_ciphertext from blog_private.admin_sessions where session_id=$1 and revoked_at is null', [activeSessionId]);
+    const storedTokens = await db.query('select session_id, user_id, auth_session_id, generation, token_ciphertext from blog_private.admin_sessions where session_id=$1 and revoked_at is null', [activeSessionId]);
     check(storedTokens.rowCount === 1, 'refresh-fixture-session-present');
     const expiring = decryptTokens(storedTokens.rows[0].token_ciphertext, Buffer.from(encryptionKey, 'hex'));
     expiring.expires_at = Math.floor(Date.now() / 1000) + 30;
     await db.query('update blog_private.admin_sessions set token_ciphertext=$2, auth_expires_at=to_timestamp($3) where session_id=$1 and revoked_at is null', [activeSessionId, encryptTokens(expiring, Buffer.from(encryptionKey, 'hex')), expiring.expires_at]);
+
+    const generationBeforeSuccessfulRefresh = Number(storedTokens.rows[0].generation);
+    const successfulRefreshResponse = await httpsJsonRequest(`${browserOrigin}/api/admin/session`, {
+      method: 'GET', headers: { cookie: `${cookie.name}=${cookie.value}`, accept: 'application/json' },
+    });
+    if (successfulRefreshResponse.status !== 200) {
+      const failedRefreshState = await db.query('select session_id=$2 as same_session, user_id=$3 as same_owner, auth_session_id=$4 as same_auth_session, generation, generation=$5 as expected_generation, refresh_claim_id, revoked_at, expires_at>clock_timestamp() as app_active from blog_private.admin_sessions where session_id=$1', [activeSessionId, storedTokens.rows[0].session_id, storedTokens.rows[0].user_id, storedTokens.rows[0].auth_session_id, generationBeforeSuccessfulRefresh + 1]);
+      const failedState = failedRefreshState.rows[0] ?? {};
+      process.stderr.write(`Successful refresh probe: status=${successfulRefreshResponse.status} code=${successfulRefreshResponse.body?.error?.code ?? 'none'} authRefreshRequests=${physicalRefreshRequests} generation=${failedState.generation ?? 'missing'} expectedGeneration=${Boolean(failedState.expected_generation)} claim=${Boolean(failedState.refresh_claim_id)} revoked=${Boolean(failedState.revoked_at)} appActive=${Boolean(failedState.app_active)} sameSession=${Boolean(failedState.same_session)} sameOwner=${Boolean(failedState.same_owner)} sameAuthSession=${Boolean(failedState.same_auth_session)} ownerMatchesConfig=${Boolean(failedState.same_owner)}\n`);
+    }
+    check(successfulRefreshResponse.status === 200 && successfulRefreshResponse.body?.authenticated === true, 'successful-auth-refresh-remains-active-after-session-revalidation');
+    const refreshedRow = await db.query('select generation, refresh_claim_id, token_ciphertext from blog_private.admin_sessions where session_id=$1 and revoked_at is null', [activeSessionId]);
+    check(Number(refreshedRow.rows[0]?.generation) === generationBeforeSuccessfulRefresh + 1 && refreshedRow.rows[0]?.refresh_claim_id === null, 'successful-auth-refresh-commits-one-expected-generation');
+    let refreshedTokens = decryptTokens(refreshedRow.rows[0].token_ciphertext, Buffer.from(encryptionKey, 'hex'));
+    refreshedTokens.expires_at = Math.floor(Date.now() / 1000) + 30;
+    await db.query('update blog_private.admin_sessions set token_ciphertext=$2, auth_expires_at=to_timestamp($3) where session_id=$1 and revoked_at is null', [activeSessionId, encryptTokens(refreshedTokens, Buffer.from(encryptionKey, 'hex')), refreshedTokens.expires_at]);
 
     const authCallsBeforeRefresh = externalAuthCalls.length;
     holdNextRefresh = true;
@@ -457,7 +537,7 @@ export async function runSessionProof() {
       catch (error) { return { status: error.status, code: error.code }; }
     });
     check(secondRefreshAttempt.status === 503 && secondRefreshAttempt.code === 'BLOG_SESSION_REFRESH_PENDING', 'concurrent-second-refresh-fails-closed');
-    check(physicalRefreshRequests === 1, 'concurrent-refresh-sends-one-physical-auth-post');
+    check(physicalRefreshRequests === 2, 'concurrent-refresh-sends-one-physical-auth-post-for-one-active-claim');
     const stillClaimed = await db.query('select generation, refresh_claim_id from blog_private.admin_sessions where session_id=$1 and revoked_at is null', [activeSessionId]);
     check(Number(stillClaimed.rows[0]?.generation) === generationBeforeSecondRefresh && stillClaimed.rows[0]?.refresh_claim_id === claimed.rows[0].refresh_claim_id, 'concurrent-refresh-keeps-one-generation-and-claim');
 
@@ -485,7 +565,7 @@ export async function runSessionProof() {
     afterLogout = await db.query('select generation, refresh_claim_id, revoked_at from blog_private.admin_sessions where session_id=$1', [activeSessionId]);
     check(afterLogout.rows[0]?.revoked_at && afterLogout.rows[0]?.refresh_claim_id === null && Number(afterLogout.rows[0].generation) === Number(claimed.rows[0].generation), 'late-refresh-cannot-revive-revoked-session');
     check(appCookies.length === cookiesBeforeLateResponse, 'late-refresh-sets-no-cookie');
-    check(physicalRefreshRequests === 1, 'one-physical-auth-refresh-attempt');
+    check(physicalRefreshRequests === 2, 'two-refreshes-used-one-physical-auth-post-per-generation');
     check(!appCookies.some(value => /access_token|refresh_token/i.test(value)), 'http-cookie-no-auth-token');
 
     phase = 'tab-close-physical-login-race';
@@ -752,6 +832,7 @@ export async function runSessionProof() {
   } finally {
     authUnavailable = true;
     releaseRefresh?.();
+    releaseUserVerification?.();
     if (browser) await browser.close().catch(() => cleanupFailures.push('browser-close'));
     if (netlifyProcess && netlifyProcess.exitCode === null) {
       netlifyProcess.kill('SIGTERM');
