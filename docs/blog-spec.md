@@ -94,8 +94,12 @@ O editor deve ser carregado apenas no painel, evitando o seu custo nas páginas 
 Usar Tiptap com as funcionalidades gratuitas. Conteúdo guardado como JSON estruturado,
 com um schema explícito e versionado. O servidor valida os tipos de nós, atributos,
 links, referências de imagens e limites; HTML arbitrário não é um formato de entrada.
+Os nós de texto preservam whitespace entre spans formatados; a prontidão exige pelo
+menos um carácter não whitespace no conjunto do corpo, sem reescrever o texto guardado.
 
-Campos do artigo: título, slug, resumo, capa, corpo e serviço relacionado. O corpo
+Campos do artigo: título, slug, resumo, capa opcional, corpo e serviço relacionado. A
+capa pode ficar vazia mesmo quando o artigo está pronto; se for indicada, tem de ser
+uma imagem completa do proprietário. O corpo
 suporta parágrafos, subtítulos, negrito, itálico, listas, links, fotografias,
 texto alternativo, legenda opcional e desfazer/refazer. A pré-visualização usa as
 mesmas regras de conteúdo e apresentação da página pública.

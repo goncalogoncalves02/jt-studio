@@ -76,6 +76,8 @@ Versões verificadas no registry em 2026-10-11; fixar exatamente as dependência
 - JSON do documento: schema **1**, máximo **256 KiB**, **5000 nós**, profundidade **32**; sem HTML cru ou atributos desconhecidos.
 - Título publicado: 1–160 caracteres; resumo publicado: 1–320; slug: 1–120, `[a-z0-9]+(?:-[a-z0-9]+)*`. Rascunhos podem estar incompletos.
 - Links: `https:`, `http:`, `mailto:` e `tel:`; rejeitar URLs/atributos executáveis. Serviço relacionado: um dos IDs existentes **1–6**, ou vazio com ligação geral aos serviços.
+- Decisão confirmada na Task 3: a capa é opcional mesmo para artigos prontos; uma capa indicada tem de ser media completa do proprietário. A release representa a ausência como `coverMedia: null`.
+- A amostra de 100 artigos usada nos testes públicos não define um limite de publicação; as releases ficam sujeitas aos limites dos campos e do runtime, sem um teto numérico inventado de artigos ou bytes.
 - Entrada de fotografia: formatos da spec, até **30 MiB**, dimensão até **12000 px** por eixo e **60 milhões de pixels**; uma fotografia processada de cada vez.
 - Master: maior lado até **1600 px**, mantendo proporção e sem ampliar. Variantes com larguras 480, 960 e largura do master, eliminando resoluções duplicadas ou maiores que o master.
 - WebP: qualidade inicial **0.84**, piso **0.78**. Alvos de bytes por variante: **128/256/512 KiB**; teto de upload **1 MiB por ficheiro**. Se os alvos não forem alcançados com qualidade aceitável, registar e rever o perfil com amostras; não esconder a falha sacrificando os detalhes.
@@ -102,7 +104,7 @@ Todos os ficheiros de domínio são ES modules JavaScript; usar JSDoc para os co
 
 | Tipo | Campos essenciais |
 |---|---|
-| `DocumentV1` | `type: 'doc'`, `content`; nós permitidos: paragraph, text, heading H2/H3, bulletList, orderedList, listItem, hardBreak, image; marks bold/italic/link |
+| `DocumentV1` | `type: 'doc'`, `content`; nós permitidos: paragraph, text, heading H2/H3, bulletList, orderedList, listItem, hardBreak, image; marks bold/italic/link; preservar spans whitespace; pronto exige texto não whitespace no conjunto do corpo |
 | `ArticleDraft` | id, revision, title, slug, excerpt, document, coverMediaId, serviceId, preparedAction, preparedRevision, contentModifiedAt, firstConfirmedAt |
 | `MediaVariant` | width, height, mime `image/webp`, byteLength, sha256, objectKey; URL público só após promoção |
 | `MediaGroup` | id, pipelineVersion 1, ownerId, state uploading/complete, variants |
