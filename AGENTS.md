@@ -4,6 +4,18 @@ Regras de colaboração, execução e verificação para este repositório. Os d
 
 As regras dependentes de servidor, autenticação, persistência, containers, i18n, CI ou delegação aplicam-se apenas quando esses elementos existirem. Este ficheiro não obriga a introduzi-los nem concede permissões especiais de execução.
 
+## Retoma local do blog editorial
+
+Execução retomada por pedido do utilizador em 12 de outubro de 2026, após a pausa
+por limite de utilização. Ler primeiro [docs/blog-handoff.md](docs/blog-handoff.md),
+[docs/blog-development.md](docs/blog-development.md) e o plano aprovado aí referido;
+reconciliar Git, diff local, ledger, processos e dados protegidos antes de testes.
+Etapas 1–4 aceites; etapa 5 em correção após revisão independente, com trabalho
+não committed a preservar. Não iniciar a etapa 6 antes da aceitação da etapa 5.
+O plano local de dez etapas está aprovado; push, PR, merge, deploy e alterações
+cloud continuam a exigir autorização explícita. Este apontador não altera as
+regras de colaboração, execução, modelos ou permissões deste ficheiro.
+
 ## Colaboração
 
 - Comunicar em português de Portugal, mantendo os termos técnicos no idioma original.

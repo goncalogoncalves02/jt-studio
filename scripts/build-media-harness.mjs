@@ -16,3 +16,15 @@ await build({
     rollupOptions: { input: resolve(root, 'index.html') },
   },
 });
+
+const pickerRoot = resolve('tests/browser/media-picker-harness');
+await build({
+  configFile: false,
+  root: pickerRoot,
+  base: '/__task5/',
+  build: {
+    outDir: resolve('dist/fixture/site/__task5'),
+    emptyOutDir: true,
+    rollupOptions: { input: resolve(pickerRoot, 'index.html') },
+  },
+});

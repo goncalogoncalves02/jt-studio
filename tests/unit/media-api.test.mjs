@@ -30,6 +30,23 @@ test('rejects a falsified MIME, truncated bytes, or an upload larger than one Mi
   await assert.rejects(validateWebpVariant(Buffer.alloc(1024 * 1024 + 1), { width: 40, height: 20 }), mediaInvalid);
 });
 
+test('rejects a structurally valid WebP whose metadata is readable but whose pixels cannot be decoded', async () => {
+  const bytes = Buffer.alloc(26);
+  bytes.write('RIFF', 0, 4, 'ascii');
+  bytes.writeUInt32LE(18, 4);
+  bytes.write('WEBP', 8, 4, 'ascii');
+  bytes.write('VP8L', 12, 4, 'ascii');
+  bytes.writeUInt32LE(5, 16);
+  bytes[20] = 0x2f;
+  bytes.writeUInt32LE(39 | (19 << 14), 21);
+
+  const metadata = await sharp(bytes, { failOn: 'error', limitInputPixels: 1600 * 1600 }).metadata();
+  assert.deepEqual({ format: metadata.format, width: metadata.width, height: metadata.height }, {
+    format: 'webp', width: 40, height: 20,
+  });
+  await assert.rejects(validateWebpVariant(bytes, { width: 40, height: 20 }), mediaInvalid);
+});
+
 test('rejects declared metadata chunks and claimed dimensions that differ from the decoded image', async () => {
   const bytes = await webp();
   const exif = await sharp({ create: { width: 40, height: 20, channels: 4, background: '#c04070' } })

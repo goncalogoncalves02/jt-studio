@@ -1,5 +1,7 @@
 # Blog development and verification
 
+> **Retoma em 12 de outubro de 2026:** ler [o ponto de retoma](blog-handoff.md) antes de executar comandos. A etapa 5 continua em correção e aguarda novos gates e revisão independente.
+
 The repository uses Node.js **24.21.0** for local builds and verification. `.nvmrc`
 records that version; Netlify's build environment selects it in `netlify.toml`.
 Project npm settings keep peer dependency resolution strict (`legacy-peer-deps=false`).

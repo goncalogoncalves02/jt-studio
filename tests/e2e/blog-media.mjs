@@ -70,6 +70,45 @@ async function jsonResponse(url, init = {}) {
   return { response, body };
 }
 
+async function directStorageRequest(url, { method = 'GET', anonKey, accessToken, body } = {}) {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      apikey: anonKey,
+      authorization: `Bearer ${accessToken}`,
+      ...(body ? { 'content-type': 'image/webp' } : {}),
+    },
+    ...(body ? { body } : {}),
+    signal: AbortSignal.timeout(15000),
+    redirect: 'manual',
+  });
+  const bytes = Buffer.from(await response.arrayBuffer());
+  let bodyJson;
+  try { bodyJson = JSON.parse(bytes.toString('utf8')); } catch { bodyJson = null; }
+  return { status: response.status, contentType: response.headers.get('content-type'), bytes, body: bodyJson };
+}
+
+function jwtExpirySeconds(token) {
+  try {
+    const pieces = token.split('.');
+    const claims = JSON.parse(Buffer.from(pieces[1], 'base64url').toString('utf8'));
+    return pieces.length === 3 && Number.isSafeInteger(claims.exp) ? claims.exp : null;
+  } catch { return null; }
+}
+
+function privateReadDenied(result) {
+  const objectCode = safePrivateObjectReadCode(result.body);
+  const policyCode = safeStoragePolicyCode(result.body);
+  return !/image\/webp/iu.test(result.contentType ?? '')
+    && (([400, 404].includes(result.status) && objectCode === 'object-not-found')
+      || ([400, 403].includes(result.status) && ['policy', 'access-denied'].includes(policyCode)));
+}
+
+function privateWriteDenied(result) {
+  return [400, 403].includes(result.status)
+    && ['policy', 'access-denied'].includes(safeStoragePolicyCode(result.body));
+}
+
 function dockerSocketPath() {
   const result = spawnSync('docker', ['--context', 'desktop-linux', 'context', 'inspect', 'desktop-linux', '--format', '{{.Endpoints.docker.Host}}'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   check(result.status === 0 && result.stdout.trim().startsWith('unix:///'), 'docker-context-socket');
@@ -591,7 +630,148 @@ export async function runMediaProof() {
       && !racedPreviewResult.bytes.equals(first.bytes), 'preview-race-original-session-revalidated-after-download');
     const afterLogout = await fetch(previewUrl, { headers: { cookie }, signal: AbortSignal.timeout(15000) });
     check(afterLogout.status === 401, 'preview-after-logout-denied');
-    process.stdout.write(`Task 5 media E2E passed; retained owner=${ownerId} media=${mediaId} cancelledMedia=${cancelledMediaId}; private uploads and session history preserved.\n`);
+
+    const directLogin = async () => {
+      const result = await jsonResponse(`http://127.0.0.1:${appPort}/api/admin/session`, {
+        method: 'POST', headers: { origin: appOrigin, 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email, password }),
+      });
+      check(result.response.status === 200 && result.body?.authenticated === true, `direct-storage-owner-login-${result.response.status}`);
+      const directCookie = result.response.headers.get('set-cookie')?.split(';', 1)[0];
+      check(directCookie?.startsWith('__Host-jt_admin='), 'direct-storage-owner-cookie');
+      const captured = await requireAdmin(new Request(`${appOrigin}/api/admin/posts`, { headers: { cookie: directCookie } }), {}, { config: authConfig });
+      const expiry = jwtExpirySeconds(captured.accessToken);
+      check(expiry !== null && expiry > Math.floor(Date.now() / 1000) + 60, 'direct-storage-owner-jwt-unexpired');
+      return captured;
+    };
+    const authorityA = await directLogin();
+    check(authorityA.userId === ownerId && authorityA.sessionId !== auth.sessionId, 'direct-storage-app-context-is-new');
+
+    const establishedPrivateRead = await directStorageRequest(storageObjectUrl, {
+      anonKey: status.ANON_KEY, accessToken: authorityA.accessToken,
+    });
+    check(establishedPrivateRead.status === 200 && establishedPrivateRead.contentType === 'image/webp'
+      && establishedPrivateRead.bytes.equals(first.bytes), `direct-storage-owner-get-positive-${establishedPrivateRead.status}`);
+
+    const positiveDirectMediaId = randomUUID();
+    const positiveDirectObjectName = `draft/${ownerId}/${positiveDirectMediaId}/480.webp`;
+    const positiveDirectObjectUrl = `${status.API_URL}/storage/v1/object/blog-drafts/${positiveDirectObjectName}`;
+    const directPositiveWrite = await directStorageRequest(positiveDirectObjectUrl, {
+      method: 'POST', anonKey: status.ANON_KEY, accessToken: authorityA.accessToken, body: first.bytes,
+    });
+    check(directPositiveWrite.status === 200, `direct-storage-owner-post-positive-${directPositiveWrite.status}`);
+    const directPositiveRead = await directStorageRequest(positiveDirectObjectUrl, {
+      anonKey: status.ANON_KEY, accessToken: authorityA.accessToken,
+    });
+    check(directPositiveRead.status === 200 && directPositiveRead.contentType === 'image/webp'
+      && directPositiveRead.bytes.equals(first.bytes), `direct-storage-owner-post-get-exact-bytes-${directPositiveRead.status}`);
+    const directPositiveMetadata = await db.query(
+      "select owner_id from storage.objects where bucket_id='blog-drafts' and name=$1", [positiveDirectObjectName],
+    );
+    check(directPositiveMetadata.rowCount === 1 && directPositiveMetadata.rows[0].owner_id === ownerId,
+      'direct-storage-positive-object-metadata');
+
+    const appInvalidated = await db.query(
+      `update blog_private.admin_sessions set revoked_at=clock_timestamp()
+       where session_id=$1 and user_id=$2 and revoked_at is null returning session_id`,
+      [authorityA.sessionId, ownerId],
+    );
+    check(appInvalidated.rowCount === 1, 'direct-storage-app-authority-revoked-exact-row');
+    const appInvalidationState = await db.query(`
+      select (app.revoked_at is null and app.expires_at>clock_timestamp() and app.auth_expires_at>clock_timestamp()) as app_live,
+        (provider.not_after is null or provider.not_after>clock_timestamp()) as provider_live
+      from blog_private.admin_sessions app join auth.sessions provider
+        on provider.id=app.auth_session_id and provider.user_id=app.user_id
+      where app.session_id=$1 and app.user_id=$2 and provider.id=$3`,
+    [authorityA.sessionId, ownerId, authorityA.authSessionId]);
+    check(appInvalidationState.rowCount === 1 && appInvalidationState.rows[0].app_live === false
+      && appInvalidationState.rows[0].provider_live === true, 'direct-storage-app-expired-provider-live-control');
+    check(jwtExpirySeconds(authorityA.accessToken) > Math.floor(Date.now() / 1000),
+      'direct-storage-app-invalidated-jwt-remains-unexpired');
+    const appDeniedRead = await directStorageRequest(storageObjectUrl, {
+      anonKey: status.ANON_KEY, accessToken: authorityA.accessToken,
+    });
+    check(privateReadDenied(appDeniedRead) && !appDeniedRead.bytes.equals(first.bytes),
+      `direct-storage-app-invalidated-get-denied-${appDeniedRead.status}-${safePrivateObjectReadCode(appDeniedRead.body)}`);
+    const appDeniedMediaId = randomUUID();
+    const appDeniedObjectName = `draft/${ownerId}/${appDeniedMediaId}/480.webp`;
+    const appDeniedWrite = await directStorageRequest(`${status.API_URL}/storage/v1/object/blog-drafts/${appDeniedObjectName}`, {
+      method: 'POST', anonKey: status.ANON_KEY, accessToken: authorityA.accessToken, body: first.bytes,
+    });
+    check(privateWriteDenied(appDeniedWrite),
+      `direct-storage-app-invalidated-post-denied-${appDeniedWrite.status}-${safeStoragePolicyCode(appDeniedWrite.body)}`);
+    const appDeniedState = await db.query(`
+      select
+        (select count(*)::int from storage.objects where bucket_id='blog-drafts' and name=$1) as objects,
+        (select count(*)::int from public.blog_media where id=$2) as media,
+        (select count(*)::int from blog_private.media_upload_intents where media_id=$2) as intents`,
+    [appDeniedObjectName, appDeniedMediaId]);
+    check(appDeniedState.rows[0]?.objects === 0 && appDeniedState.rows[0]?.media === 0
+      && appDeniedState.rows[0]?.intents === 0, 'direct-storage-app-invalidated-post-no-writes');
+
+    const authorityB = await directLogin();
+    check(authorityB.userId === ownerId && authorityB.sessionId !== authorityA.sessionId
+      && authorityB.authSessionId !== authorityA.authSessionId, 'direct-storage-provider-context-is-independent');
+    const providerPositiveRead = await directStorageRequest(storageObjectUrl, {
+      anonKey: status.ANON_KEY, accessToken: authorityB.accessToken,
+    });
+    check(providerPositiveRead.status === 200 && providerPositiveRead.contentType === 'image/webp'
+      && providerPositiveRead.bytes.equals(first.bytes), `direct-storage-provider-get-positive-${providerPositiveRead.status}`);
+    const providerPositiveMediaId = randomUUID();
+    const providerPositiveObjectName = `draft/${ownerId}/${providerPositiveMediaId}/480.webp`;
+    const providerPositiveObjectUrl = `${status.API_URL}/storage/v1/object/blog-drafts/${providerPositiveObjectName}`;
+    const providerPositiveWrite = await directStorageRequest(providerPositiveObjectUrl, {
+      method: 'POST', anonKey: status.ANON_KEY, accessToken: authorityB.accessToken, body: first.bytes,
+    });
+    check(providerPositiveWrite.status === 200, `direct-storage-provider-post-positive-${providerPositiveWrite.status}`);
+    const providerPositiveWrittenRead = await directStorageRequest(providerPositiveObjectUrl, {
+      anonKey: status.ANON_KEY, accessToken: authorityB.accessToken,
+    });
+    check(providerPositiveWrittenRead.status === 200 && providerPositiveWrittenRead.contentType === 'image/webp'
+      && providerPositiveWrittenRead.bytes.equals(first.bytes), `direct-storage-provider-post-get-exact-bytes-${providerPositiveWrittenRead.status}`);
+    const providerPositiveMetadata = await db.query(
+      "select owner_id from storage.objects where bucket_id='blog-drafts' and name=$1", [providerPositiveObjectName],
+    );
+    check(providerPositiveMetadata.rowCount === 1 && providerPositiveMetadata.rows[0].owner_id === ownerId,
+      'direct-storage-provider-positive-object-metadata');
+    const providerInvalidated = await db.query(
+      `update auth.sessions set not_after=least(coalesce(not_after,clock_timestamp()),clock_timestamp()-interval '1 second'),
+        updated_at=clock_timestamp() where id=$1 and user_id=$2 returning id`,
+      [authorityB.authSessionId, ownerId],
+    );
+    check(providerInvalidated.rowCount === 1, 'direct-storage-provider-authority-expired-exact-row');
+    const providerInvalidationState = await db.query(`
+      select (app.revoked_at is null and app.expires_at>clock_timestamp() and app.auth_expires_at>clock_timestamp()) as app_live,
+        (provider.not_after is null or provider.not_after>clock_timestamp()) as provider_live
+      from blog_private.admin_sessions app join auth.sessions provider
+        on provider.id=app.auth_session_id and provider.user_id=app.user_id
+      where app.session_id=$1 and app.user_id=$2 and provider.id=$3`,
+    [authorityB.sessionId, ownerId, authorityB.authSessionId]);
+    check(providerInvalidationState.rowCount === 1 && providerInvalidationState.rows[0].app_live === true
+      && providerInvalidationState.rows[0].provider_live === false, 'direct-storage-provider-expired-app-live-control');
+    check(jwtExpirySeconds(authorityB.accessToken) > Math.floor(Date.now() / 1000),
+      'direct-storage-provider-invalidated-jwt-remains-unexpired');
+    const providerDeniedRead = await directStorageRequest(storageObjectUrl, {
+      anonKey: status.ANON_KEY, accessToken: authorityB.accessToken,
+    });
+    check(privateReadDenied(providerDeniedRead) && !providerDeniedRead.bytes.equals(first.bytes),
+      `direct-storage-provider-invalidated-get-denied-${providerDeniedRead.status}-${safePrivateObjectReadCode(providerDeniedRead.body)}`);
+    const providerDeniedMediaId = randomUUID();
+    const providerDeniedObjectName = `draft/${ownerId}/${providerDeniedMediaId}/480.webp`;
+    const providerDeniedWrite = await directStorageRequest(`${status.API_URL}/storage/v1/object/blog-drafts/${providerDeniedObjectName}`, {
+      method: 'POST', anonKey: status.ANON_KEY, accessToken: authorityB.accessToken, body: first.bytes,
+    });
+    check(privateWriteDenied(providerDeniedWrite),
+      `direct-storage-provider-invalidated-post-denied-${providerDeniedWrite.status}-${safeStoragePolicyCode(providerDeniedWrite.body)}`);
+    const providerDeniedState = await db.query(`
+      select
+        (select count(*)::int from storage.objects where bucket_id='blog-drafts' and name=$1) as objects,
+        (select count(*)::int from public.blog_media where id=$2) as media,
+        (select count(*)::int from blog_private.media_upload_intents where media_id=$2) as intents`,
+    [providerDeniedObjectName, providerDeniedMediaId]);
+    check(providerDeniedState.rows[0]?.objects === 0 && providerDeniedState.rows[0]?.media === 0
+      && providerDeniedState.rows[0]?.intents === 0, 'direct-storage-provider-invalidated-post-no-writes');
+    process.stdout.write(`Task 5 media E2E passed; retained owner=${ownerId} media=${mediaId} cancelledMedia=${cancelledMediaId} directStorageObject=${positiveDirectMediaId}; appInvalidatedSession=${authorityA.sessionId} providerInvalidatedSession=${authorityB.sessionId}; private objects and session history preserved.\n`);
   } catch (error) { primaryError = error; }
   finally {
     if (netlifyProcess && netlifyProcess.exitCode === null) {
