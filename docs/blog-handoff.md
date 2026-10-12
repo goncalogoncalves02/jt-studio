@@ -1,19 +1,33 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
-> **Retoma confirmada em 2026-10-12:** o utilizador pediu a continuação. HEAD e
-> alterações locais da etapa 5 foram preservados; esta continua por aceitar.
-> Os ficheiros temporários de `/tmp` desapareceram após o reinício da máquina.
-> A baseline protegida foi recuperada do inventário durável exato (7 containers,
-> 236 volumes), sem criar uma baseline a partir do estado atual. O mesmo Storage
-> foi arrancado após preflight e revisão independente; o initializer, volume,
-> dados, estado e locks foram preservados. A verificação operacional original
-> `verify-existing` passou com Node 26.8.1; os gates da aplicação exigem Node 24.21.0.
-> Gemini voltou a constar no catálogo, mas a execução headless recusou a permissão
-> de comandos e não produziu trabalho. A mesma correção foi entregue ao fallback
-> GPT Luna 6 High. Evidência atual no ledger ignorado
-> `.superpowers/sdd/2026-10-11-blog-editorial/coordinator-resume-20261012.md`.
-> As secções abaixo descrevem o checkpoint histórico da pausa; o diff e o ledger
-> atual prevalecem. Sem aceitação da etapa 5 nem início da etapa 6.
+> **Estado confirmado em 2026-10-12:** etapas 1–5 aceites localmente. As cinco
+> correções da etapa 5 foram concluídas no commit assinado+DCO `5628d93`, filho
+> de `3422117`. O coordenador repetiu 16 gates com outputs/exit codes duráveis:
+> 122/122 unit tests, 4/4 browser tests, builds, lint focado, grafo instalado,
+> SQL Storage, bloqueios PostgreSQL físicos e E2E real Functions/Auth/Storage.
+> Revisão independente: R1–R5 addressed, sem regressões bloqueantes; mais 9/9
+> unidades de media e 3/3 probes de finally/respostas tardias, com mutações causais.
+> O lint global mantém o baseline histórico RED; CI remoto, produção e iPhone
+> físico não foram verificados. Etapas 6–10 não iniciadas; a pergunta sobre o
+> âmbito da continuação após a etapa 5 está pendente, dado o apontador da main.
+>
+> A baseline protegida perdida em `/tmp` foi recuperada do inventário durável
+> exato: 7 containers e 236 volumes continuam presentes. Apenas o mesmo Storage
+> foi arrancado após preflight/revisão independente; initializer, volume, dados,
+> estado e locks foram preservados. A verificação operacional original passou
+> com Node 26.8.1; os gates da aplicação usaram Node 24.21.0.
+> Inventário final: owner NULL, zero autoridades app/provider ativas e orphan
+> privado retido. Gemini headless recusou comandos; GPT Luna 6 High continuou a
+> mesma correção, mantendo o diff existente. Sem push, PR, merge, deploy ou cloud.
+>
+> Evidência ignorada em `.superpowers/sdd/2026-10-11-blog-editorial/`:
+> `coordinator-resume-20261012.md`, `coordinator-task5-final-20261012/` e
+> `task5-independent-corrections-5628d93-20261012/`. Conservar os probes R1 para
+> integrar a cobertura durável da identidade do controller no editor/gate futuro;
+> checks JWT após respostas reforçariam a prova R4 em corridas futuras lentas.
+> São notas de cobertura não bloqueantes, sem defeito atual demonstrado.
+> As secções abaixo são o checkpoint histórico da pausa; o estado acima e o ledger
+> atual prevalecem. Não repetir init/resume, resetar dados ou substituir o trabalho.
 
 Pausa registada na passagem para 2026-10-12 (Europe/Lisbon).
 

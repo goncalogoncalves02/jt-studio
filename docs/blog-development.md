@@ -1,6 +1,6 @@
 # Blog development and verification
 
-> **Retoma em 12 de outubro de 2026:** ler [o ponto de retoma](blog-handoff.md) antes de executar comandos. A etapa 5 continua em correção e aguarda novos gates e revisão independente.
+> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente após novos gates e revisão independente. Ler [o ponto de retoma](blog-handoff.md); etapas 6–10 não iniciadas.
 
 The repository uses Node.js **24.21.0** for local builds and verification. `.nvmrc`
 records that version; Netlify's build environment selects it in `netlify.toml`.

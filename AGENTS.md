@@ -10,8 +10,9 @@ Execução retomada por pedido do utilizador em 12 de outubro de 2026, após a p
 por limite de utilização. Ler primeiro [docs/blog-handoff.md](docs/blog-handoff.md),
 [docs/blog-development.md](docs/blog-development.md) e o plano aprovado aí referido;
 reconciliar Git, diff local, ledger, processos e dados protegidos antes de testes.
-Etapas 1–4 aceites; etapa 5 em correção após revisão independente, com trabalho
-não committed a preservar. Não iniciar a etapa 6 antes da aceitação da etapa 5.
+Etapas 1–5 aceites localmente. As correções da etapa 5 estão no commit assinado
+`5628d93`, com novos gates e revisão independente concluídos. Etapas 6–10 não
+iniciadas; a clarificação do âmbito desta retoma após a etapa 5 está pendente.
 O plano local de dez etapas está aprovado; push, PR, merge, deploy e alterações
 cloud continuam a exigir autorização explícita. Este apontador não altera as
 regras de colaboração, execução, modelos ou permissões deste ficheiro.
