@@ -2,18 +2,25 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 const NavBar = () => {
-  const [scrolled, setScrolled] = useState(false);
+  const [scrolledPath, setScrolledPath] = useState(null);
   const [drawerPath, setDrawerPath] = useState(null);
   const { pathname, search, hash } = useLocation();
   const locationKey = `${pathname}${search}${hash}`;
+  const normalizedPath = pathname.replace(/\/+$/u, '') || '/';
+  const lightPublicRoute = normalizedPath === '/blog' || normalizedPath.startsWith('/blog/');
+  const scrolled = scrolledPath === pathname;
+  const opaqueNav = scrolled || lightPublicRoute;
   const drawerOpen = drawerPath === locationKey;
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
-    onScroll();
+    const onScroll = () => setScrolledPath(window.scrollY > 60 ? pathname : null);
+    const initialScrollFrame = window.requestAnimationFrame(onScroll);
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    return () => {
+      window.cancelAnimationFrame(initialScrollFrame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [pathname]);
 
   const links = [
     { label: "Início", to: "/" },
@@ -26,7 +33,7 @@ const NavBar = () => {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-[100] flex justify-between items-center text-cream transition-all duration-[350ms] max-[1100px]:!px-6 max-[700px]:!px-[22px] ${scrolled ? "bg-ink/92 backdrop-blur-[14px] border-b border-cream/[.08] px-12 py-[14px]" : "bg-transparent px-12 py-[18px]"}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[100] flex justify-between items-center text-cream ${lightPublicRoute ? "transition-none" : "transition-all"} duration-[350ms] max-[1100px]:!px-6 max-[700px]:!px-[22px] ${opaqueNav ? "bg-ink/92 backdrop-blur-[14px] border-b border-cream/[.08] px-12 py-[14px]" : "bg-transparent px-12 py-[18px]"}`}>
 
         <Link to="/" aria-label="JT Studio — Jaqueline Takiuti" className="flex items-center gap-[10px] no-underline text-cream min-h-[44px] py-[9px]">
           <span className="font-serif text-[26px] font-normal italic leading-none tracking-[0.01em]">

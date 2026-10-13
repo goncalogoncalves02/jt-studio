@@ -279,3 +279,79 @@ test('malformed encoded fragments leave public page content and navigation usabl
   await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
   await expect(page.locator('main h1')).toContainText('Notas de beleza');
 });
+
+test('public light-page navigation keeps contrast at first paint and legacy navigation retains its theme', async ({ page }) => {
+  const contrastSnapshot = async (selector, property = 'color') => page.locator('nav').evaluate((nav, options) => {
+    const surface = document.querySelector('main > *');
+    const navStyle = getComputedStyle(nav);
+    const navClasses = [...nav.classList];
+    const surfaceStyle = getComputedStyle(surface);
+    const foreground = getComputedStyle(nav.querySelector(options.selector))[options.property];
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 1;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.fillStyle = surfaceStyle.backgroundColor;
+    context.fillRect(0, 0, 2, 1);
+    context.fillStyle = navStyle.backgroundColor;
+    context.fillRect(0, 0, 2, 1);
+    const background = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+    context.fillStyle = foreground;
+    context.fillRect(1, 0, 1, 1);
+    const text = [...context.getImageData(1, 0, 1, 1).data].slice(0, 3);
+    const luminance = ([r, g, b]) => {
+      const linear = (channel) => {
+        const value = channel / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+    };
+    const [lighter, darker] = [luminance(text), luminance(background)].sort((a, b) => b - a);
+    return { contrast: (lighter + 0.05) / (darker + 0.05), navBackground: navStyle.backgroundColor, navClasses,
+      navText: navStyle.color, foreground, surface: surfaceStyle.backgroundColor };
+  }, { selector, property });
+  const assertNavigationContrast = async (selector, property = 'color') => {
+    const result = await contrastSnapshot(selector, property);
+    expect(result.contrast, JSON.stringify(result)).toBeGreaterThanOrEqual(4.5);
+    return result;
+  };
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/blog/');
+  await expect(page.locator('main h1')).toContainText('Notas de beleza');
+  const listLink = await assertNavigationContrast('ul a[href="/blog"]');
+  expect(listLink.surface).toContain('236, 231, 215');
+  await assertNavigationContrast('nav > a[aria-label]');
+  await page.locator('main a[href="/blog/post-000"]').first().click();
+  await expect(page).toHaveURL(`${localBase}/blog/post-000`);
+  await expect(page.locator('main h1')).toContainText('Artigo sintético 000');
+  await assertNavigationContrast('ul a[href="/blog"]');
+  await assertNavigationContrast('nav > a[aria-label]');
+
+  await page.goto('/servicos');
+  const legacyTop = await page.locator('nav').evaluate((nav) => [...nav.classList]);
+  expect(legacyTop).toContain('bg-transparent');
+  await page.evaluate(() => window.scrollTo(0, 250));
+  await expect.poll(() => page.locator('nav').evaluate((nav) => nav.classList.contains('bg-ink/92'))).toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/blog');
+  await expect(page.locator('main h1')).toContainText('Notas de beleza');
+  await assertNavigationContrast('nav > button');
+  await assertNavigationContrast('nav > button', 'borderTopColor');
+  await page.goto('/servicos');
+  await expect.poll(() => page.locator('nav').evaluate((nav) => [...nav.classList])).toContain('bg-transparent');
+  await page.getByRole('button', { name: 'Abrir menu' }).click();
+  await expect(page.locator('.fixed.inset-0')).toBeVisible();
+  await page.locator('.fixed.inset-0').getByRole('link', { name: 'Blog', exact: true }).click();
+  await expect(page).toHaveURL(`${localBase}/blog`);
+  await expect(page.locator('main h1')).toContainText('Notas de beleza');
+  await assertNavigationContrast('nav > button');
+  await assertNavigationContrast('nav > button', 'borderTopColor');
+  await page.getByRole('button', { name: 'Abrir menu' }).click();
+  await expect(page.locator('.fixed.inset-0')).toBeVisible();
+  await page.locator('.fixed.inset-0').getByRole('link', { name: 'Serviços' }).click();
+  await expect(page).toHaveURL(`${localBase}/servicos`);
+  await expect(page.locator('.fixed.inset-0')).toHaveCount(0);
+  await expect.poll(() => page.locator('nav').evaluate((nav) => [...nav.classList])).toContain('bg-transparent');
+});

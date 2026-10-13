@@ -28,6 +28,17 @@
 > e aceitação Task 6 continuam pendentes. Reporte/evidência em
 > `.superpowers/sdd/2026-10-11-blog-editorial/task6-formatting-r6-20261013/`.
 >
+> **Actualização R7–R8, 2026-10-13:** o checker de artefactos valida agora os nós
+> `<script>` pelo DOM parseado, incluindo perfil estático confiável, bundle Vite e
+> bootstrap/JSON-LD inertes. A navbar das páginas Blog/artigo começa opaca e com
+> contraste imediato; a navbar legacy mantém o aspeto transparente no topo e opaco
+> ao scroll. Gates finais: 131 unit, 28 browser, 3 legacy, fixtures/checkers vazio,
+> dois artigos e 100 artigos, lint, sintaxe e diff-check verdes. Commit local filho
+> assinado+DCO de `b7f4bb5`; revisão independente e aceitação Task 6 continuam
+> pendentes. Evidência/report/ledger em
+> `.superpowers/sdd/2026-10-11-blog-editorial/task6-corrections-r7-r8-20261013/`.
+> Sem Task 7, push, PR, merge, deploy, cloud ou integração.
+>
 > A baseline protegida perdida em `/tmp` foi recuperada do inventário durável
 > exato: 7 containers e 236 volumes continuam presentes. Apenas o mesmo Storage
 > foi arrancado após preflight/revisão independente; initializer, volume, dados,

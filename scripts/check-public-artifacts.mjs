@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const TRUSTED_TEMPLATE_SCRIPT_DIGEST = '88da0e5a2b14db208511084ead7a0d58c7dc5db3285ca60e51aa2f141e02d0ee';
 function visit(node, callback) {
   callback(node);
   for (const child of node.childNodes ?? []) visit(child, callback);
@@ -12,6 +14,72 @@ function visit(node, callback) {
 }
 function attr(node, name) { return node.attrs?.find((entry) => entry.name === name)?.value; }
 function text(node) { return (node.childNodes ?? []).map((child) => child.value ?? text(child)).join(''); }
+function scriptDescriptor(node) {
+  return {
+    attributes: [...(node.attrs ?? [])].map(({ name, value }) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name)),
+    text: text(node),
+  };
+}
+function isExecutableScript(node) {
+  const type = attr(node, 'type')?.trim().toLowerCase();
+  return !type || type === 'module' || [
+    'application/ecmascript', 'application/javascript', 'text/ecmascript', 'text/javascript',
+  ].includes(type);
+}
+export function assertScriptIntegrity(source, trustedExecutableScripts, route = 'document') {
+  const document = parse(source);
+  const nodes = [];
+  visit(document, (node) => nodes.push(node));
+  const scripts = nodes.filter((node) => node.tagName === 'script');
+  const executable = scripts.filter(isExecutableScript);
+  assert.deepEqual(executable.map(scriptDescriptor), trustedExecutableScripts,
+    `${route} contains only trusted executable script nodes`);
+  let bootstrapCount = 0;
+  for (const node of scripts) {
+    const type = attr(node, 'type');
+    if (isExecutableScript(node)) continue;
+    if (type === 'application/ld+json') {
+      assert.deepEqual(scriptDescriptor(node).attributes, [
+        { name: 'data-jt-jsonld', value: 'true' }, { name: 'type', value: 'application/ld+json' },
+      ], `${route} JSON-LD has only trusted inert attributes`);
+      assert.equal(node.parentNode?.tagName, 'head', `${route} JSON-LD is in head`);
+      assert.ok(JSON.parse(text(node)) && typeof JSON.parse(text(node)) === 'object', `${route} JSON-LD is valid`);
+      continue;
+    }
+    if (type === 'application/json' && attr(node, 'id') === 'public-page-data') {
+      assert.deepEqual(scriptDescriptor(node).attributes, [
+        { name: 'id', value: 'public-page-data' }, { name: 'type', value: 'application/json' },
+      ], `${route} hydration bootstrap has only trusted inert attributes`);
+      assert.equal(node.parentNode?.tagName, 'body', `${route} hydration bootstrap is in body`);
+      assert.ok(JSON.parse(text(node)) && typeof JSON.parse(text(node)) === 'object', `${route} hydration bootstrap is valid`);
+      bootstrapCount += 1;
+      continue;
+    }
+    assert.fail(`${route} contains an unrecognized script node`);
+  }
+  assert.equal(bootstrapCount, 1, `${route} has one inert hydration bootstrap`);
+}
+function trustedExecutableScripts(siteDir) {
+  const template = parse(readFileSync(path.join(projectRoot, 'index.html'), 'utf8'));
+  const templateNodes = [];
+  visit(template, (node) => templateNodes.push(node));
+  const staticScripts = templateNodes.filter((node) => node.tagName === 'script'
+    && isExecutableScript(node) && attr(node, 'src') !== '/src/main.jsx').map(scriptDescriptor);
+  assert.equal(staticScripts.length, 3, 'trusted source template has the expected Cookiebot and gtag scripts');
+  assert.equal(createHash('sha256').update(JSON.stringify(staticScripts)).digest('hex'), TRUSTED_TEMPLATE_SCRIPT_DIGEST,
+    'trusted static executable scripts match the pinned project profile');
+  const assetsDir = path.join(siteDir, 'assets');
+  const bundles = readdirSync(assetsDir).filter((name) => /^index-[A-Za-z0-9_-]+\.js$/u.test(name));
+  assert.equal(bundles.length, 1, 'site has one built Vite entry bundle');
+  return [...staticScripts, {
+    attributes: [
+      { name: 'crossorigin', value: '' },
+      { name: 'src', value: `/assets/${bundles[0]}` },
+      { name: 'type', value: 'module' },
+    ],
+    text: '',
+  }];
+}
 function routeFile(route) {
   if (route === '/') return 'index.html';
   if (route === '/blog') return 'blog.html';
@@ -44,11 +112,12 @@ export function checkPublicArtifacts(outDir, expectedReleaseId) {
   const routes = ['/', '/servicos', '/info', '/galeria', '/contactos', '/blog', '/admin', '/404', ...index.map((post) => `/blog/${post.slug}`)];
   const aliases = ['/servicos/', '/info/', '/galeria/', '/contactos/'];
   const schemaCounts = new Map();
+  const trustedScripts = trustedExecutableScripts(siteDir);
   for (const route of routes) {
     const htmlPath = path.join(siteDir, routeFile(route));
     assert.ok(existsSync(htmlPath), `${route} has a pre-rendered HTML document`);
     const source = readFileSync(htmlPath, 'utf8');
-    assert.doesNotMatch(source, /<script>alert\(1\)<\/script>/iu, `${route} cannot terminate an inline script`);
+    assertScriptIntegrity(source, trustedScripts, route);
     const document = parse(source);
     const nodes = [];
     visit(document, (node) => nodes.push(node));
