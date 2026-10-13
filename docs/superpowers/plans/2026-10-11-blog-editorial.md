@@ -1,6 +1,6 @@
 # Blog editorial do JT Studio — Implementation Plan
 
-> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente; correções da etapa 5 em `5628d93`, gates frescos e revisão independente concluídos. Etapas 6–10 não iniciadas. Ler [docs/blog-handoff.md](../../blog-handoff.md); âmbito da sequência após a etapa 5 pendente de clarificação.
+> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente; correções da etapa 5 em `5628d93`, gates frescos e revisão independente concluídos. Etapa 6 autorizada pelo utilizador em 13 de outubro de 2026; implementação em curso. Etapas 7–10 não iniciadas. Ler [docs/blog-handoff.md](../../blog-handoff.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Os modelos, papéis e permissões de `AGENTS.md` prevalecem: Sol coordena, Gemini implementa via `agy`; Luna é fallback por indisponibilidade, não uma alternativa escolhida silenciosamente.
 

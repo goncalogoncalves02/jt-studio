@@ -10,7 +10,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm run build && npm run build:fixture && npm run build:media-harness && npm exec -- vite preview --outDir dist/fixture/site --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'npm run build && npm run build:fixture:browser && npm run build:media-harness && node scripts/static-test-server.mjs --dir dist/fixture/site --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 120_000,

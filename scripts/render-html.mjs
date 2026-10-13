@@ -30,7 +30,7 @@ function detach(node) {
 }
 
 /** Compose one rendered React route into the built client document. */
-export function composeHtml(template, markup, pageData) {
+export function composeHtml(template, markup, pageData, jsonLd = []) {
   const document = parse(template);
   let head;
   let root;
@@ -51,14 +51,25 @@ export function composeHtml(template, markup, pageData) {
   const hoisted = [];
   const content = [];
   for (const child of [...fragment.childNodes]) {
-    if (['title', 'meta', 'link'].includes(child.tagName)) hoisted.push(child);
+    if (['title', 'meta', 'link'].includes(child.tagName)
+        || (child.tagName === 'script' && getAttr(child, 'type') === 'application/ld+json')) hoisted.push(child);
     else content.push(child);
   }
 
   for (const node of hoisted) {
     detach(node);
+    if (node.tagName === 'title' || node.tagName === 'meta' || node.tagName === 'link') setAttr(node, 'data-rh', 'true');
     head.childNodes.push(node);
     node.parentNode = head;
+  }
+  for (const schema of jsonLd) {
+    const script = {
+      nodeName: 'script', tagName: 'script',
+      attrs: [{ name: 'type', value: 'application/ld+json' }, { name: 'data-jt-jsonld', value: 'true' }],
+      namespaceURI: 'http://www.w3.org/1999/xhtml', childNodes: [textNode(safeJson(schema))], parentNode: head,
+    };
+    script.childNodes[0].parentNode = script;
+    head.childNodes.push(script);
   }
   root.childNodes = content;
   for (const node of content) node.parentNode = root;

@@ -1,4 +1,3 @@
-import { Helmet } from "react-helmet-async";
 import FAQAccordion from "../components/FAQAccordion";
 import { faqData } from "../data/faqData";
 import SEO from "../components/SEO";
@@ -28,10 +27,8 @@ const Info = () => {
       <SEO
         title="Info & FAQ"
         description="Perguntas frequentes sobre Microblading e cuidados pós-procedimento no JT Studio, Setúbal. Tire todas as suas dúvidas."
+        structuredData={faqSchema}
       />
-      <Helmet>
-        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
-      </Helmet>
 
       {/* Page Header */}
       <section className="page-header-section bg-ink text-cream relative overflow-hidden">

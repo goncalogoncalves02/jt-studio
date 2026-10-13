@@ -6,6 +6,7 @@ const navLinks = [
   { label: "Galeria", to: "/galeria" },
   { label: "Info & FAQ", to: "/info" },
   { label: "Contactos", to: "/contactos" },
+  { label: "Blog", to: "/blog" },
 ];
 
 const contactLinks = [

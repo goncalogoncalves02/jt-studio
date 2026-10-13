@@ -1,4 +1,3 @@
-import { Helmet } from "react-helmet-async";
 import SEO from "../components/SEO";
 
 const contactSchema = {
@@ -69,10 +68,8 @@ const Contact = () => (
     <SEO
       title="Contactos"
       description="Contacte o JT Studio em Setúbal. Morada: Estrada das Machadas nº 3C. Telefone: +351 962 149 209. Agende online."
+      structuredData={contactSchema}
     />
-    <Helmet>
-      <script type="application/ld+json">{JSON.stringify(contactSchema)}</script>
-    </Helmet>
 
     {/* Page Header */}
     <section className="page-header-section bg-ink text-cream relative overflow-hidden">

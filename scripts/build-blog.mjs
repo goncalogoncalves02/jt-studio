@@ -3,35 +3,30 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
 import { composeHtml } from './render-html.mjs';
+import { createHash } from 'node:crypto';
+import { createPublicPageData, publicRoutePaths, writePublicFiles, CANONICAL_ORIGIN } from './public-files.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const routes = ['/', '/servicos', '/info', '/galeria', '/contactos'];
 const aliases = routes.filter((route) => route !== '/').map((route) => `${route}/`);
+const FIXTURE_STORAGE_ORIGIN = 'https://project.supabase.co';
 
-function createPageData(release) {
-  if (
-    !release
-    || release.schemaVersion !== 1
-    || !Array.isArray(release.posts)
-    || release.posts.length !== 0
-    || typeof release.releaseId !== 'string'
-    || !release.releaseId
-  ) {
-    throw new Error('Task 1 fixture build requires an explicit empty schemaVersion 1 release');
-  }
-  return { releaseId: release.releaseId, index: [], post: null };
-}
-
-/** Build an explicit fixture release. Confirmed production release sourcing is added in Task 8. */
+/** Build only an explicit test fixture release. Confirmed production sourcing is added in Task 8. */
 export async function buildBlog({ mode, release, outDir } = {}) {
   if (mode !== 'fixture') {
     throw new Error('Confirmed-release sourcing is not installed; use the legacy build or an explicit fixture build');
   }
   if (!release) throw new Error('Fixture mode requires an explicit release path or release object');
-  const releaseData = typeof release === 'string'
-    ? JSON.parse(await readFile(path.resolve(projectRoot, release), 'utf8'))
-    : release;
-  const pageData = createPageData(releaseData);
+  const rawPayload = typeof release === 'string' ? await readFile(path.resolve(projectRoot, release), 'utf8') : undefined;
+  const releaseData = rawPayload === undefined ? release : JSON.parse(rawPayload);
+  const payload = typeof releaseData?.payload === 'string' ? releaseData.payload : rawPayload ?? JSON.stringify(releaseData);
+  const releaseEnvelope = {
+    releaseId: releaseData?.releaseId,
+    payload,
+    digest: releaseData?.digest ?? createHash('sha256').update(payload, 'utf8').digest('hex'),
+  };
+  const publicStorageOrigin = process.env.PUBLIC_STORAGE_ORIGIN || FIXTURE_STORAGE_ORIGIN;
+  const blogRoutes = publicRoutePaths(releaseEnvelope, publicStorageOrigin);
   const target = path.resolve(projectRoot, outDir ?? 'dist/fixture');
   const siteDir = path.join(target, 'site');
   const clientDir = siteDir;
@@ -45,16 +40,27 @@ export async function buildBlog({ mode, release, outDir } = {}) {
   const outputs = [
     ...routes.map((route) => ({ route, file: route === '/' ? 'index.html' : `${route.slice(1)}.html` })),
     ...aliases.map((route) => ({ route, file: path.join(route.slice(1), 'index.html') })),
+    { route: '/blog', file: 'blog.html' },
+    ...blogRoutes.map((route) => ({ route, file: `${route.slice(1)}.html` })),
+    { route: '/admin', file: 'admin.html' },
+    { route: '/404', file: '404.html' },
   ];
   for (const { route, file } of outputs) {
-    const html = composeHtml(template, serverEntry.renderRoute(route, pageData), pageData);
+    const routeData = createPublicPageData(releaseEnvelope, route, publicStorageOrigin);
+    const rendered = serverEntry.renderRoute(route, routeData);
+    const html = composeHtml(template, rendered.markup, routeData, rendered.jsonLd);
     await mkdir(siteDir, { recursive: true });
     const outputPath = path.join(siteDir, file);
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, html);
   }
 
-  const manifest = { mode, releaseId: releaseData.releaseId, routes, aliases, clientDir, serverDir, siteDir };
+  const publicManifest = await writePublicFiles(releaseEnvelope, siteDir, { deployId: process.env.DEPLOY_ID || 'fixture', publicStorageOrigin });
+  const sitemapRoutes = [...routes, '/blog', ...blogRoutes];
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapRoutes.map((route) => `  <url><loc>${CANONICAL_ORIGIN}${route === '/' ? '' : route}</loc></url>`).join('\n')}\n</urlset>\n`;
+  await writeFile(path.join(siteDir, 'sitemap.xml'), sitemap);
+
+  const manifest = { mode, releaseId: releaseEnvelope.releaseId, routes: [...routes, '/blog', ...blogRoutes, '/admin', '/404'], aliases, clientDir, serverDir, siteDir, publicManifest };
   await writeFile(path.join(target, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
 }

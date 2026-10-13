@@ -1,6 +1,6 @@
 # Blog development and verification
 
-> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente após novos gates e revisão independente. Ler [o ponto de retoma](blog-handoff.md); etapas 6–10 não iniciadas.
+> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente após novos gates e revisão independente. Ler [o ponto de retoma](blog-handoff.md); etapa 6 autorizada em 13 de outubro de 2026 e em implementação; etapas 7–10 não iniciadas.
 
 The repository uses Node.js **24.21.0** for local builds and verification. `.nvmrc`
 records that version; Netlify's build environment selects it in `netlify.toml`.
@@ -18,14 +18,20 @@ export PLAYWRIGHT_BROWSERS_PATH=/tmp/jt-studio-browsers
 `npm run build` remains the existing site build. The confirmed-release reader is not
 installed yet, so it must not fall back to an empty article fixture. The separate
 `npm run build:fixture` command explicitly selects the synthetic empty release in
-`tests/fixtures/empty-release.json` and writes verification artifacts under
-`dist/fixture/`. It is test-only and is not a production publication command.
+`tests/fixtures/empty-release.json`; `npm run build:fixture:published` explicitly
+selects the two-post test fixture. Both are test-only and are not production
+publication commands. Browser tests generate a separate 100-post synthetic release
+in memory through `npm run build:fixture:browser`; each body has a unique sentinel.
 
 The fixture build creates a client Vite output and a separate SSR output, then writes
-static documents for `/`, `/servicos`, `/info`, `/galeria`, and `/contactos`. It also
-writes directory-index aliases for the four non-home routes with a trailing slash.
-Both URL forms render matching route trees and use the no-slash canonical. Task 8
-must add confirmed-release sourcing before the production build can publish the blog.
+static documents for the five existing routes, `/blog`, every published fixture
+post, `/admin`, and `404.html`. It also writes directory-index aliases for the four
+non-home legacy routes with a trailing slash. Article data is split into a summary
+index and one versioned JSON file per post. The public release manifest contains
+only releaseId, deployId, digest, and schema. Release SHA-256 validation covers the
+exact stored payload text; the build does not reserialize that payload to verify it.
+Task 8 must add confirmed-release sourcing before the production build can publish
+the blog.
 `vite.config.js` remains unchanged because its existing React SWC and Tailwind plugins
 are used by both builds; `build-blog.mjs` supplies the independent output directories,
 root, base path, and SSR entry through Vite's per-build options.
@@ -54,7 +60,26 @@ The checked-in codec artifact is regenerated only by the separate, explicit Task
 All pre-existing Docker resources are protected. The initial local inventory records 7 containers, 236 volumes, and 197 images; the named services/containers are preserved in the task's ignored evidence. Before creating the compiler container, refresh that inventory and compare it with the recorded protected state. This Docker Desktop daemon cannot bind-mount the host `/tmp`, so the build uses `docker cp` to place verified archives/scripts in one explicitly named and labelled task-owned ephemeral container's writable layer; compilation has no mounts. The container runs as non-root host UID/GID with `--network none`, at most 2 CPUs and 3 GiB memory on the current daemon, and no ports, named volumes or Docker socket. Record the exact container ID and build output before removing only that container by ID. Never prune Docker resources, remove images/volumes, or stop other services as part of this task. The local Docker Desktop runtime and temporary source/build directories are development/test prerequisites, not application dependencies.
 
 - `npm run test:legacy` — confirms that the legacy Vite output still contains its original raw metadata and BeautySalon JSON-LD. Run after `npm run build`; its artifact-dependent test lives outside the unit-test discovery directory.
-- `node scripts/check-public-artifacts.mjs` — route metadata, structured data, hydration payload, and local asset checks. Run after `npm run build:fixture`.
+- `node scripts/check-public-artifacts.mjs` — route metadata, structured data, versioned data, sitemap, hydration payload, cache rules, and public bundle boundary checks. Run after either fixture build.
+- `npm run build:fixture:published` followed by `node scripts/check-public-artifacts.mjs dist/published-fixture/manifest.json` — validates the two-post release fixture independently.
+- `npm run test:browser -- tests/browser/public-blog.spec.js` — runs the public pages against a generated 100-post fixture using the scoped `scripts/static-test-server.mjs`. The server serves existing files first, then returns a real 404 for missing blog/admin paths; it is a local static-hosting equivalent, not evidence from Netlify.
+
+The public renderer accepts only DocumentV1 nodes and promoted `blog-public`
+Storage URLs. SQL release posts retain immutable public object keys without URLs;
+the Task 8 confirmed-release adapter must join promotion results to those keys before
+feeding the renderer. The textual release payload and digest contract remain
+unchanged. Per-post browser navigation requests only that versioned post JSON, not
+the other article bodies. `/admin` currently renders a noindex not-found page and
+is absent from the sitemap; Task 9 owns the admin UI.
+
+Generated `/blog/*` files take priority over the Netlify 404 redirect, and missing
+static blog files follow `/blog/* /404.html 404` before the SPA fallback. `_headers`
+gives HTML and the release manifest revalidation headers, while `/blog-data/*`
+uses immutable caching; selectors remain disjoint so Cache-Control values are not
+concatenated. Netlify file-shadowing/404 behavior is based on the pinned official
+documentation but was not tested against a remote site. The local fixture server
+proves the expected HTTP statuses without deploying. The service anchors preserve
+hash scrolling through React navigation, including the fixed navbar offset.
 - `npm run test:browser -- tests/browser/existing-pages.spec.js` — Chromium hydration, navigation, console errors, and missing assets. The Playwright web server builds the explicit fixture first.
 
 Playwright uses a local preview on `127.0.0.1:4173` and checks both URL forms for each

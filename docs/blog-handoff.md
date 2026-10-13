@@ -8,8 +8,9 @@
 > Revisão independente: R1–R5 addressed, sem regressões bloqueantes; mais 9/9
 > unidades de media e 3/3 probes de finally/respostas tardias, com mutações causais.
 > O lint global mantém o baseline histórico RED; CI remoto, produção e iPhone
-> físico não foram verificados. Etapas 6–10 não iniciadas; a pergunta sobre o
-> âmbito da continuação após a etapa 5 está pendente, dado o apontador da main.
+> físico não foram verificados. Em 2026-10-13, o utilizador autorizou a etapa 6: páginas públicas, HTML
+> estático e SEO, conforme o plano aprovado. Implementação em curso; etapas
+> 7–10 não iniciadas. As referências à pausa abaixo são históricas.
 >
 > A baseline protegida perdida em `/tmp` foi recuperada do inventário durável
 > exato: 7 containers e 236 volumes continuam presentes. Apenas o mesmo Storage

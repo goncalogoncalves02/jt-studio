@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-/** @typedef {{ releaseId: string | null, index: object[], post: object | null }} PublicPageData */
+/** @typedef {{ releaseId: string | null, index: object[], post: object | null, notFound?: boolean, api?: object }} PublicPageData */
 
 export const emptyPublicPageData = Object.freeze({ releaseId: null, index: [], post: null });
 

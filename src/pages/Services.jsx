@@ -1,4 +1,3 @@
-import { Helmet } from "react-helmet-async";
 import { servicesData } from "../data/servicesData";
 import SEO from "../components/SEO";
 
@@ -31,10 +30,8 @@ const Services = () => {
       <SEO
         title="Serviços"
         description="Serviços de Micropigmentação, Nanoblading, Soft Eyeliner, Tattoo e Remoção a Laser em Setúbal. Preços a partir de 10€. Agende no JT Studio."
+        structuredData={servicesSchema}
       />
-      <Helmet>
-        <script type="application/ld+json">{JSON.stringify(servicesSchema)}</script>
-      </Helmet>
 
       {/* Page Header */}
       <section className="page-header-section bg-ink text-cream relative overflow-hidden">
@@ -70,9 +67,10 @@ const Services = () => {
             {servicesData.map((svc, i) => (
               <a
                 key={svc.id}
+                id={`servico-${svc.id}`}
                 href={svc.bookingUrl}
                 target="_blank" rel="noopener noreferrer"
-                className="svc-row"
+                className="svc-row scroll-mt-28"
               >
                 <span className="svc-row-num font-mono text-[14px] tracking-[0.18em] text-rose">
                   {(i + 1).toString().padStart(2, "0")}

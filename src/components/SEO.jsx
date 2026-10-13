@@ -1,7 +1,10 @@
+import { useContext, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
+import { safeJson } from "../blog/safe-json.js";
+import { HeadDataContext } from "../blog/HeadDataContext.js";
 
-const SEO = ({ title, description, image, url }) => {
+const SEO = ({ title, description, image, imageWidth, imageHeight, url, type = "website", structuredData, noindex = false }) => {
   const { pathname } = useLocation();
   const canonicalPathname = pathname.replace(/\/+$/, "") || "/";
   const siteTitle = "JT Studio | Micropigmentação & Estética";
@@ -10,7 +13,12 @@ const SEO = ({ title, description, image, url }) => {
   const siteUrl = "https://jaquelinetakiutistudio.com";
   const defaultImage = `${siteUrl}/og-image.png`;
   const canonicalUrl = url || `${siteUrl}${canonicalPathname === "/" ? "" : canonicalPathname}`;
-  const pageTitle = title ? `${title} | JT Studio` : siteTitle;
+  const shouldNoindex = noindex || canonicalPathname === "/admin" || canonicalPathname.startsWith("/admin/");
+  const metaText = (value) => String(value).replace(/[<>"']/gu, ' ').replace(/\s+/gu, ' ').trim();
+  const pageTitle = metaText(title ? `${title} | JT Studio` : siteTitle);
+  const metaDescription = metaText(description || defaultDescription);
+  const imageDimensions = imageWidth && imageHeight ? [imageWidth, imageHeight] : [1200, 630];
+  const headData = useContext(HeadDataContext);
 
   const businessSchema = {
     "@context": "https://schema.org",
@@ -102,12 +110,50 @@ const SEO = ({ title, description, image, url }) => {
           inLanguage: "pt-PT",
         }
       : null;
+  const schemas = [businessSchema, breadcrumbSchema, websiteSchema, structuredData].filter(Boolean);
+  const schemaPayload = JSON.stringify(schemas);
+
+  if (headData && typeof document === "undefined") {
+    for (const schema of schemas) {
+      const encoded = JSON.stringify(schema);
+      if (!headData.some((entry) => JSON.stringify(entry) === encoded)) headData.push(schema);
+    }
+  }
+
+  useEffect(() => {
+    document.head.querySelectorAll('script[data-jt-jsonld="true"]').forEach((node) => node.remove());
+    for (const schema of JSON.parse(schemaPayload)) {
+      const script = document.createElement("script");
+      script.type = "application/ld+json";
+      script.dataset.jtJsonld = "true";
+      script.textContent = safeJson(schema);
+      document.head.append(script);
+    }
+    return () => document.head.querySelectorAll('script[data-jt-jsonld="true"]').forEach((node) => node.remove());
+  }, [schemaPayload]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const robots = [...document.head.querySelectorAll('meta[name="robots"]')];
+      if (shouldNoindex) {
+        const meta = robots[0] ?? document.createElement('meta');
+        meta.name = 'robots';
+        meta.content = 'noindex, nofollow';
+        if (!meta.parentNode) document.head.append(meta);
+        robots.slice(1).forEach((node) => node.remove());
+      } else {
+        robots.forEach((node) => node.remove());
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [shouldNoindex]);
 
   return (
     <Helmet>
       <title>{pageTitle}</title>
-      <meta name="description" content={description || defaultDescription} />
+      <meta name="description" content={metaDescription} />
       <link rel="canonical" href={canonicalUrl} />
+      {shouldNoindex && <meta name="robots" content="noindex, nofollow" />}
 
       {/* Localização e Autor */}
       <meta name="author" content="Jaqueline Takiuti Studio" />
@@ -118,16 +164,16 @@ const SEO = ({ title, description, image, url }) => {
       <meta name="theme-color" content="#be185d" />
 
       {/* Open Graph */}
-      <meta property="og:type" content="website" />
+      <meta property="og:type" content={type} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:title" content={pageTitle} />
       <meta
         property="og:description"
-        content={description || defaultDescription}
+        content={metaDescription}
       />
       <meta property="og:image" content={image || defaultImage} />
-      <meta property="og:image:width" content="1200" />
-      <meta property="og:image:height" content="630" />
+      <meta property="og:image:width" content={String(imageDimensions[0])} />
+      <meta property="og:image:height" content={String(imageDimensions[1])} />
       <meta property="og:locale" content="pt_PT" />
       <meta property="og:site_name" content="JT Studio" />
 
@@ -136,24 +182,11 @@ const SEO = ({ title, description, image, url }) => {
       <meta name="twitter:title" content={pageTitle} />
       <meta
         name="twitter:description"
-        content={description || defaultDescription}
+        content={metaDescription}
       />
       <meta name="twitter:image" content={image || defaultImage} />
 
       {/* Structured Data */}
-      <script type="application/ld+json">
-        {JSON.stringify(businessSchema)}
-      </script>
-      {breadcrumbSchema && (
-        <script type="application/ld+json">
-          {JSON.stringify(breadcrumbSchema)}
-        </script>
-      )}
-      {websiteSchema && (
-        <script type="application/ld+json">
-          {JSON.stringify(websiteSchema)}
-        </script>
-      )}
     </Helmet>
   );
 };

@@ -11,8 +11,8 @@ por limite de utilização. Ler primeiro [docs/blog-handoff.md](docs/blog-handof
 [docs/blog-development.md](docs/blog-development.md) e o plano aprovado aí referido;
 reconciliar Git, diff local, ledger, processos e dados protegidos antes de testes.
 Etapas 1–5 aceites localmente. As correções da etapa 5 estão no commit assinado
-`5628d93`, com novos gates e revisão independente concluídos. Etapas 6–10 não
-iniciadas; a clarificação do âmbito desta retoma após a etapa 5 está pendente.
+`5628d93`, com novos gates e revisão independente concluídos. Em 13 de outubro de 2026, o utilizador autorizou avançar com a etapa 6: páginas
+públicas, HTML estático e SEO, conforme o plano aprovado. Etapas 7–10 não iniciadas.
 O plano local de dez etapas está aprovado; push, PR, merge, deploy e alterações
 cloud continuam a exigir autorização explícita. Este apontador não altera as
 regras de colaboração, execução, modelos ou permissões deste ficheiro.

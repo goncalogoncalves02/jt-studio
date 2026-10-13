@@ -2,7 +2,6 @@ import { useState } from "react";
 import { galleryImages, galFilters, galWidths } from "../data/galleryData";
 import Lightbox from "../components/Lightbox";
 import SEO from "../components/SEO";
-import { Helmet } from "react-helmet-async";
 
 const gallerySchema = {
   "@context": "https://schema.org",
@@ -39,10 +38,8 @@ const Gallery = () => {
       <SEO
         title="Galeria"
         description="Galeria de resultados de Nanoblading, Micropigmentação Labial e Tattoo no JT Studio em Setúbal. Fotos reais de antes e depois."
+        structuredData={gallerySchema}
       />
-      <Helmet>
-        <script type="application/ld+json">{JSON.stringify(gallerySchema)}</script>
-      </Helmet>
 
       {/* Page Header */}
       <section className="page-header-section bg-ink relative overflow-hidden">
