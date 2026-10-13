@@ -90,3 +90,19 @@ test('public_build_excludes_editor_image_codec_workers_and_wasm', () => {
   const javascript = names.filter((name) => name.endsWith('.js')).map((name) => readFileSync(path.join(assets, name), 'utf8')).join('\n');
   assert.doesNotMatch(javascript, /@jsquash\/webp|heic-to|wasm-feature-detect|webp_enc/);
 });
+
+test('legacy build publishes a valid sitemap for the five supported public routes', () => {
+  const sitemap = readFileSync(path.join(root, 'dist/sitemap.xml'), 'utf8');
+  const rootMatch = /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">\n([\s\S]*)<\/urlset>\n$/u.exec(sitemap);
+  assert.ok(rootMatch, 'sitemap must be a complete UTF-8 XML urlset');
+  const entries = [...rootMatch[1].matchAll(/^ {2}<url><loc>([^<]+)<\/loc><\/url>$/gmu)].map((match) => match[1]);
+  assert.deepEqual(entries, [
+    'https://jaquelinetakiutistudio.com',
+    'https://jaquelinetakiutistudio.com/servicos',
+    'https://jaquelinetakiutistudio.com/info',
+    'https://jaquelinetakiutistudio.com/galeria',
+    'https://jaquelinetakiutistudio.com/contactos',
+  ]);
+  assert.match(readFileSync(path.join(root, 'dist/robots.txt'), 'utf8'), /^Sitemap: https:\/\/jaquelinetakiutistudio\.com\/sitemap\.xml$/mu);
+  assert.doesNotMatch(sitemap, /\/blog|\/admin|draft|preview/iu);
+});

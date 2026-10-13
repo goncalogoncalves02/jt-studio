@@ -10,7 +10,7 @@ const posts = Array.from({ length: 100 }, (_, index) => {
     id,
     slug: `post-${number}`,
     title: index === 50 ? `Post ${number} </script><script>alert(1)</script>` : `Artigo sintético ${number}`,
-    excerpt: `Resumo público ${number}.`,
+    excerpt: index === 50 ? `Resumo "especial" da Jaqueline's: </script><script>alert(1)</script> & cuidados.` : `Resumo público ${number}.`,
     document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: body }] }] },
     coverMedia: null,
     media: [],
@@ -25,6 +25,8 @@ const posts = Array.from({ length: 100 }, (_, index) => {
       width: 480, height: 320, mime: 'image/webp', byteLength: 512, sha256: sha,
       objectKey: `public/${mediaId}/480-${sha}.webp`,
     }] };
+    post.media = [post.coverMedia];
+    post.document.content.push({ type: 'image', attrs: { mediaId, alt: 'Imagem partilhada na capa e no artigo' } });
   }
   return post;
 });

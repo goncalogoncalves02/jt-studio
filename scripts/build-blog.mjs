@@ -5,6 +5,7 @@ import { build } from 'vite';
 import { composeHtml } from './render-html.mjs';
 import { createHash } from 'node:crypto';
 import { createPublicPageData, publicRoutePaths, writePublicFiles, CANONICAL_ORIGIN } from './public-files.mjs';
+import { renderSitemap } from './sitemap.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const routes = ['/', '/servicos', '/info', '/galeria', '/contactos'];
@@ -57,7 +58,7 @@ export async function buildBlog({ mode, release, outDir } = {}) {
 
   const publicManifest = await writePublicFiles(releaseEnvelope, siteDir, { deployId: process.env.DEPLOY_ID || 'fixture', publicStorageOrigin });
   const sitemapRoutes = [...routes, '/blog', ...blogRoutes];
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapRoutes.map((route) => `  <url><loc>${CANONICAL_ORIGIN}${route === '/' ? '' : route}</loc></url>`).join('\n')}\n</urlset>\n`;
+  const sitemap = renderSitemap(sitemapRoutes, CANONICAL_ORIGIN);
   await writeFile(path.join(siteDir, 'sitemap.xml'), sitemap);
 
   const manifest = { mode, releaseId: releaseEnvelope.releaseId, routes: [...routes, '/blog', ...blogRoutes, '/admin', '/404'], aliases, clientDir, serverDir, siteDir, publicManifest };

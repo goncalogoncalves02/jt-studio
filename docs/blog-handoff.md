@@ -11,6 +11,14 @@
 > físico não foram verificados. Em 2026-10-13, o utilizador autorizou a etapa 6: páginas públicas, HTML
 > estático e SEO, conforme o plano aprovado. Implementação em curso; etapas
 > 7–10 não iniciadas. As referências à pausa abaixo são históricas.
+
+> **Actualização Task 6, 2026-10-13:** correções R1–R5 da revisão independente
+> implementadas no filho assinado+DCO de `99b235b`; gates locais finais verdes:
+> 129 testes unitários, 26 testes browser, lint completo, build/testes legados,
+> fixtures e verificadores de artefactos. A revisão independente deste filho e a
+> aceitação da Task 6 estão pendentes. Sem push, PR, merge, deploy, Task 7 ou
+> integração com dados/produção. Relatório, ledger, outputs, exit codes e hashes
+> encontram-se em `.superpowers/sdd/2026-10-11-blog-editorial/task6-corrections-20261013/`.
 >
 > A baseline protegida perdida em `/tmp` foi recuperada do inventário durável
 > exato: 7 containers e 236 volumes continuam presentes. Apenas o mesmo Storage

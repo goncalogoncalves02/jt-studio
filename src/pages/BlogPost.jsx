@@ -18,10 +18,10 @@ export default function BlogPost() {
   const { pathname } = useLocation();
   const [state, setState] = useState(() => pageData.post?.slug === slug
     ? { slug, post: pageData.post, missing: false, error: false }
-    : pageData.notFound && pathname === '/404' ? { slug, post: null, missing: true, error: false }
+    : pageData.notFound ? { slug, post: null, missing: true, error: false }
       : { slug: null, post: null, missing: false, error: false });
   useEffect(() => {
-    if (pageData.notFound && pathname === '/404') return undefined;
+    if (pageData.notFound) return undefined;
     if (pageData.post?.slug === slug) return undefined;
     const controller = new AbortController();
     pageData.api.loadPublicPost(slug, { signal: controller.signal }).then((result) => {
@@ -55,7 +55,7 @@ export default function BlogPost() {
   };
   return (
     <article className="min-h-screen bg-cream px-[22px] pb-24 pt-32 sm:px-12">
-      <SEO title={post.title} description={description} url={canonical} type="article" image={cover?.url} imageWidth={cover?.width} imageHeight={cover?.height} structuredData={schema} />
+      <SEO title={post.title} description={description} url={canonical} type="article" publishedAt={post.publishedAt} modifiedAt={post.modifiedAt} image={cover?.url} imageWidth={cover?.width} imageHeight={cover?.height} structuredData={schema} />
       <div className="mx-auto max-w-3xl">
         <Link to="/blog" className="font-mono text-xs uppercase tracking-[0.15em] text-rose">← Blog</Link>
         <header className="mt-8">

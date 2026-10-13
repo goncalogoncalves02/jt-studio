@@ -67,6 +67,12 @@ function assertPublicMedia(value) {
   if (value.variants.some((variant) => variant.height !== Math.max(1, Math.round(master.height * variant.width / master.width)))) {
     throw new TypeError('Public blog media dimensions are inconsistent.');
   }
+  return {
+    id: value.id,
+    variants: value.variants.map(({ width, height, mime, byteLength, sha256, objectKey, url }) => ({
+      width, height, mime, byteLength, sha256, objectKey, url,
+    })),
+  };
 }
 
 function assertPost(value, slug, releaseId) {
@@ -81,12 +87,18 @@ function assertPost(value, slug, releaseId) {
     throw new TypeError('Public blog post has an unsupported schema.');
   }
   validateDraft({ title: value.title, slug: value.slug, excerpt: value.excerpt, serviceId: value.serviceId, document: value.document });
-  assertPublicMedia(value.coverMedia);
-  value.media.forEach(assertPublicMedia);
-  const allMedia = [...value.media, ...(value.coverMedia ? [value.coverMedia] : [])];
-  if (new Set(value.media.map((media) => media?.id)).size !== value.media.length
-      || new Set(allMedia.map((media) => media?.id)).size !== allMedia.length) throw new TypeError('Public post media identities are duplicated.');
-  const mediaIds = new Set([...value.media, ...(value.coverMedia ? [value.coverMedia] : [])].map((media) => media?.id));
+  const bodyMedia = value.media.map(assertPublicMedia);
+  const coverMedia = assertPublicMedia(value.coverMedia);
+  const bodyMediaById = new Map();
+  for (const media of bodyMedia) {
+    if (bodyMediaById.has(media.id)) throw new TypeError('Public post body media identities are duplicated.');
+    bodyMediaById.set(media.id, media);
+  }
+  const bodyCover = coverMedia && bodyMediaById.get(coverMedia.id);
+  if (bodyCover && JSON.stringify(bodyCover) !== JSON.stringify(coverMedia)) {
+    throw new TypeError('Public post cover and body media definitions conflict.');
+  }
+  const mediaIds = new Set([...bodyMediaById.keys(), ...(coverMedia ? [coverMedia.id] : [])]);
   const verifyReferences = (node) => {
     if (node.type === 'image' && !mediaIds.has(node.attrs?.mediaId)) throw new TypeError('Public post references missing media.');
     (node.content ?? []).forEach(verifyReferences);

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/write-legacy-sitemap.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "build:fixture": "node scripts/build-blog.mjs --mode fixture --release tests/fixtures/empty-release.json",

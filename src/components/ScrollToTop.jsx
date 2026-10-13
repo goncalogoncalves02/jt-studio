@@ -6,7 +6,13 @@ const ScrollToTop = () => {
 
   useEffect(() => {
     if (hash) {
-      const id = decodeURIComponent(hash.slice(1));
+      let id;
+      try {
+        id = decodeURIComponent(hash.slice(1));
+      } catch {
+        window.scrollTo(0, 0);
+        return;
+      }
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const target = document.getElementById(id);
         if (!target) return;

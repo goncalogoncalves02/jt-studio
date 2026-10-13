@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { safeJson } from "../blog/safe-json.js";
 import { HeadDataContext } from "../blog/HeadDataContext.js";
 
-const SEO = ({ title, description, image, imageWidth, imageHeight, url, type = "website", structuredData, noindex = false }) => {
+const SEO = ({ title, description, image, imageWidth, imageHeight, url, type = "website", publishedAt, modifiedAt, structuredData, noindex = false }) => {
   const { pathname } = useLocation();
   const canonicalPathname = pathname.replace(/\/+$/, "") || "/";
   const siteTitle = "JT Studio | Micropigmentação & Estética";
@@ -14,9 +14,8 @@ const SEO = ({ title, description, image, imageWidth, imageHeight, url, type = "
   const defaultImage = `${siteUrl}/og-image.png`;
   const canonicalUrl = url || `${siteUrl}${canonicalPathname === "/" ? "" : canonicalPathname}`;
   const shouldNoindex = noindex || canonicalPathname === "/admin" || canonicalPathname.startsWith("/admin/");
-  const metaText = (value) => String(value).replace(/[<>"']/gu, ' ').replace(/\s+/gu, ' ').trim();
-  const pageTitle = metaText(title ? `${title} | JT Studio` : siteTitle);
-  const metaDescription = metaText(description || defaultDescription);
+  const pageTitle = title ? `${title} | JT Studio` : siteTitle;
+  const metaDescription = description || defaultDescription;
   const imageDimensions = imageWidth && imageHeight ? [imageWidth, imageHeight] : [1200, 630];
   const headData = useContext(HeadDataContext);
 
@@ -165,6 +164,8 @@ const SEO = ({ title, description, image, imageWidth, imageHeight, url, type = "
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />
+      {type === "article" && publishedAt && <meta property="article:published_time" content={publishedAt} />}
+      {type === "article" && modifiedAt && <meta property="article:modified_time" content={modifiedAt} />}
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:title" content={pageTitle} />
       <meta
