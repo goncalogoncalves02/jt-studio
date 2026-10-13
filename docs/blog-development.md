@@ -1,6 +1,6 @@
 # Blog development and verification
 
-> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente após novos gates e revisão independente. Ler [o ponto de retoma](blog-handoff.md); etapa 6 autorizada em 13 de outubro de 2026 e em implementação; etapas 7–10 não iniciadas.
+> **Estado em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente. Os gates finais afetados passaram: build legacy, lint completo, browser 29/29, legacy 3/3 e checker limpo 108 rotas/4 aliases/100 artigos. Unit 131/131 e checkers de fixture vazia (8 rotas) e publicada (10 rotas) são provas anteriores válidas de contratos inalterados e não foram repetidos no gate final R8. Ler [o ponto de retoma](blog-handoff.md) e o [relatório independente](../.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md). Task 7 é a próxima fatia planeada, ainda não iniciada e dependente de nova instrução explícita. CI remoto, produção e dispositivo físico não foram verificados.
 
 The repository uses Node.js **24.21.0** for local builds and verification. `.nvmrc`
 records that version; Netlify's build environment selects it in `netlify.toml`.
@@ -40,7 +40,7 @@ root, base path, and SSR entry through Vite's per-build options.
 
 Run these from the repository root with Node 24.21.0:
 
-- `npm run lint` — ESLint. The pre-existing baseline has one `react-hooks/set-state-in-effect` error in `src/components/NavBar.jsx:16`.
+- `npm run lint` — full ESLint gate; passed for the accepted Task 6 tree.
 - `npm run build` — existing production build; remains independent of fixture data.
 - `npm run build:fixture` — explicit synthetic-release client/SSR rendering proof.
 - `npm run test:unit` — discovers every `tests/unit/*.test.mjs` module, covering metadata, script-safe bootstrap serialization, and raw HTML for all five existing routes. Requires a successful `npm run build:fixture` immediately beforehand; legacy-build artifact checks are kept under `tests/legacy/` so this gate stays fixture-only.

@@ -1,6 +1,6 @@
 # Blog editorial do JT Studio — Implementation Plan
 
-> **Estado em 12 de outubro de 2026:** etapas 1–5 aceites localmente; correções da etapa 5 em `5628d93`, gates frescos e revisão independente concluídos. Etapa 6 autorizada pelo utilizador em 13 de outubro de 2026; implementação em curso. Etapas 7–10 não iniciadas. Ler [docs/blog-handoff.md](../../blog-handoff.md).
+> **Estado em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente. Gates finais: build legacy, lint completo, browser 29/29, legacy 3/3 e checker limpo de 100 artigos (108 rotas/4 aliases); os 131 unit tests e os checkers de fixture vazia (8 rotas) e publicada (10 rotas) são evidência anterior válida de contratos inalterados, não um novo rerun R8. A Task 7 é a próxima fatia planeada, não iniciada e requer nova instrução explícita. CI remoto, produção e dispositivo físico não foram verificados. Ler [docs/blog-handoff.md](../../blog-handoff.md) e o [relatório independente de aceitação](../../../.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Os modelos, papéis e permissões de `AGENTS.md` prevalecem: Sol coordena, Gemini implementa via `agy`; Luna é fallback por indisponibilidade, não uma alternativa escolhida silenciosamente.
 
@@ -206,17 +206,21 @@ Schema proposto: `public.blog_posts`, `blog_media`; `blog_private.settings`, `ad
 
 ## Task 6: Páginas públicas, metadata e dados estáticos por rota
 
+> **Estado:** aceite localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`; ver [revisão independente](../../../.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md).
+
 **Files:** criar `src/pages/Blog.jsx`, `BlogPost.jsx`, `NotFound.jsx`, `src/blog/ContentRenderer.jsx`, `public-data.js`, `scripts/public-files.mjs`, `tests/fixtures/published-release.json`, `tests/unit/public-files.test.mjs`, `tests/browser/public-blog.spec.js`; ampliar checker da Task 1; modificar entry SSR, build/composição, `src/App.jsx`, `main.jsx`, `components/SEO.jsx`, NavBar/Footer, `pages/Services.jsx` para anchors dos serviços, `_redirects`, `_headers`, `robots.txt`; retirar sitemap manual quando o gerado existir.
 
 **Interfaces:** `renderDocument(document, mediaMap) -> ReactNode`; `writePublicFiles(release, outDir, deployMeta) -> manifest`; `loadPublicIndex({signal}) -> summaries`, `loadPublicPost(slug,{signal}) -> PublicPost`; `checkPublicArtifacts(outDir, expectedReleaseId) -> report`. Dados em `/blog-data/<releaseId>/index.json` e `posts/<slug>.json`; manifest público `/blog-release.json` contém apenas releaseId/deployId/digest/schema.
 
-- [ ] **1 — Escrever provas:** dois posts com capas/canonical/datas diferentes, rascunho excluído, título `</script>` inofensivo e sem schemas duplicados. Index não contém corpos; navegação para um artigo não descarrega os outros 99. Artigo retirado/inexistente tem 404 real no servidor e estado 404 client-side.
-- [ ] **2 — Executar RED:** `node --test tests/unit/public-files.test.mjs`; `npm run test:browser -- tests/browser/public-blog.spec.js`. Usar release sintética com 100 resumos e conteúdo sentinela por post.
-- [ ] **3 — Implementar:** só nós/marks permitidos, URL/media validados e React para escapar texto. Bootstrap JSON seguro e apenas dados da rota; hydrateRoot quando houver SSR e createRoot para shells SPA. Assets/dados versionados são servidos estaticamente; não consultar SDK no browser público. Metadata por post, Blog/BlogPosting, dimensões OG reais e datas da revisão confirmada. Canonical base fixa `https://jaquelinetakiutistudio.com`. Listagem recente, links de serviço e autoria. Emitir HTML cinco rotas + blog/posts, sitemap e 404; regra `/blog/*` 404 precede fallback SPA e respeita os ficheiros existentes.
-- [ ] **4 — Verificar GREEN:** repetir comandos, checker e navegação sem hydration warnings. Lazy loading abaixo da zona inicial e sizes conforme largura renderizada; index.html/JSON/HTML com cache revalidável, dados versionados com cache imutável. Verificar fotos srcset e nenhuma chave/URL privado nos artefactos. Layout/comportamento das cinco páginas preservados.
-- [ ] **5 — Autorrevisão e commit:** confirmar slug/datas/404 e não introduzir editor/SDK no bundle público; commit assinado+DCO `feat: render static blog pages with per-post metadata and sitemap`.
+- [x] **1 — Escrever provas:** dois posts com capas/canonical/datas diferentes, rascunho excluído, título `</script>` inofensivo e sem schemas duplicados. Index não contém corpos; navegação para um artigo não descarrega os outros 99. Artigo retirado/inexistente tem 404 real no servidor e estado 404 client-side.
+- [x] **2 — Executar RED:** `node --test tests/unit/public-files.test.mjs`; `npm run test:browser -- tests/browser/public-blog.spec.js`. Usar release sintética com 100 resumos e conteúdo sentinela por post.
+- [x] **3 — Implementar:** só nós/marks permitidos, URL/media validados e React para escapar texto. Bootstrap JSON seguro e apenas dados da rota; hydrateRoot quando houver SSR e createRoot para shells SPA. Assets/dados versionados são servidos estaticamente; não consultar SDK no browser público. Metadata por post, Blog/BlogPosting, dimensões OG reais e datas da revisão confirmada. Canonical base fixa `https://jaquelinetakiutistudio.com`. Listagem recente, links de serviço e autoria. Emitir HTML cinco rotas + blog/posts, sitemap e 404; regra `/blog/*` 404 precede fallback SPA e respeita os ficheiros existentes.
+- [x] **4 — Verificar GREEN:** repetir comandos, checker e navegação sem hydration warnings. Lazy loading abaixo da zona inicial e sizes conforme largura renderizada; index.html/JSON/HTML com cache revalidável, dados versionados com cache imutável. Verificar fotos srcset e nenhuma chave/URL privado nos artefactos. Layout/comportamento das cinco páginas preservados.
+- [x] **5 — Autorrevisão e commit:** confirmar slug/datas/404 e não introduzir editor/SDK no bundle público; commit assinado+DCO `feat: render static blog pages with per-post metadata and sitemap`.
 
 ## Task 7: Confirmação do conjunto e dispatch idempotente
+
+> **Estado:** próxima fatia planeada, não iniciada; requer nova instrução explícita do utilizador.
 
 **Files:** criar `server/blog/publication.mjs`, `tests/unit/publication.test.mjs`, `tests/db/publication-dispatch.sql`; ampliar repositories/RPCs e rotas Functions.
 

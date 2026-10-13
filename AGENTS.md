@@ -4,18 +4,11 @@ Regras de colaboração, execução e verificação para este repositório. Os d
 
 As regras dependentes de servidor, autenticação, persistência, containers, i18n, CI ou delegação aplicam-se apenas quando esses elementos existirem. Este ficheiro não obriga a introduzi-los nem concede permissões especiais de execução.
 
-## Retoma local do blog editorial
+## Estado local do blog editorial
 
-Execução retomada por pedido do utilizador em 12 de outubro de 2026, após a pausa
-por limite de utilização. Ler primeiro [docs/blog-handoff.md](docs/blog-handoff.md),
-[docs/blog-development.md](docs/blog-development.md) e o plano aprovado aí referido;
-reconciliar Git, diff local, ledger, processos e dados protegidos antes de testes.
-Etapas 1–5 aceites localmente. As correções da etapa 5 estão no commit assinado
-`5628d93`, com novos gates e revisão independente concluídos. Em 13 de outubro de 2026, o utilizador autorizou avançar com a etapa 6: páginas
-públicas, HTML estático e SEO, conforme o plano aprovado. Etapas 7–10 não iniciadas.
-O plano local de dez etapas está aprovado; push, PR, merge, deploy e alterações
-cloud continuam a exigir autorização explícita. Este apontador não altera as
-regras de colaboração, execução, modelos ou permissões deste ficheiro.
+As etapas 1–6 estão aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente. Os gates finais da correção R8 passaram: build legacy, lint completo, 29 testes browser, 3 testes legacy e checker limpo de 100 artigos (108 rotas, 4 aliases). Os 131 testes unitários e os checkers das fixtures vazia (8 rotas) e publicada (10 rotas) são evidência anterior válida para contratos inalterados; não foram novamente executados no gate final R8. Consultar [o ponto de retoma](docs/blog-handoff.md), [o runbook](docs/blog-development.md), [o plano aprovado](docs/superpowers/plans/2026-10-11-blog-editorial.md) e o [relatório independente de aceitação](.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md).
+
+A Task 7 é a próxima fatia planeada, continua por iniciar e requer nova instrução explícita do utilizador. O build de produção permanece legacy até à fonte de release confirmada da Task 8. CI remoto, produção e dispositivo físico não foram verificados; push, PR, merge, deploy e cloud continuam a exigir autorização explícita.
 
 ## Colaboração
 

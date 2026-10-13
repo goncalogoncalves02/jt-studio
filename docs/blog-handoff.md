@@ -1,5 +1,9 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
+> **Estado autoritativo em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente [R1–R8](../.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md). Gates finais R8: build legacy; lint completo; browser 29/29; legacy 3/3; build público limpo e checker de 100 artigos (108 rotas/4 aliases). Os 131 testes unitários e os checkers anteriores de fixture vazia (8 rotas) e publicada (10 rotas) continuam válidos para contratos inalterados; não foram novamente executados no gate final R8. CI remoto, Netlify/CDN em produção e dispositivo físico não foram verificados.
+>
+> **Próximo passo:** a Task 7 (confirmação e dispatch idempotente) é a próxima fatia do plano, ainda não iniciada e depende de nova instrução explícita do utilizador. `npm run build` permanece no limite legacy; a fonte de release confirmada da Task 8 ainda é necessária para publicação de produção. As pastas de relatórios e logs em `.superpowers/sdd/2026-10-11-blog-editorial/` são evidência local ignorada pelo Git, não artefactos do commit. Os estados e bloqueios abaixo pertencem ao histórico e são supersedidos por este cabeçalho autoritativo.
+
 > **Estado confirmado em 2026-10-12:** etapas 1–5 aceites localmente. As cinco
 > correções da etapa 5 foram concluídas no commit assinado+DCO `5628d93`, filho
 > de `3422117`. O coordenador repetiu 16 gates com outputs/exit codes duráveis:
