@@ -39,6 +39,17 @@
 > `.superpowers/sdd/2026-10-11-blog-editorial/task6-corrections-r7-r8-20261013/`.
 > Sem Task 7, push, PR, merge, deploy, cloud ou integração.
 >
+> **Conclusão da correção R8 404, 2026-10-13:** a navbar mantém o fundo escuro
+> opaco com transição imediata em `/blog/missing`, `/404` e `/admin`, alinhando as
+> classes SSR e hidratadas. O teste browser compara a resposta HTTP, as classes e
+> contraste calculado do CSS compilado em 1280px/390px, e verifica recuperação pelo
+> menu desktop/mobile. As cinco rotas legacy preservam o tema e os gates afetados
+> passaram (build legacy, 3 testes legacy, lint, 29 browser e checker limpo de 100
+> artigos). Commit local assinado+DCO filho de `80ad9fe`; revisão independente e
+> aceitação Task 6 pendentes. Evidência fechada em
+> `.superpowers/sdd/2026-10-11-blog-editorial/task6-r8-404-completion-20261013/`.
+> Sem Task 7, push, PR, merge, deploy, cloud ou integração.
+>
 > A baseline protegida perdida em `/tmp` foi recuperada do inventário durável
 > exato: 7 containers e 236 volumes continuam presentes. Apenas o mesmo Storage
 > foi arrancado após preflight/revisão independente; initializer, volume, dados,

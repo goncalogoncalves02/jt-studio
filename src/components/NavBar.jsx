@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+const LEGACY_DARK_ROUTES = new Set(['/', '/servicos', '/info', '/galeria', '/contactos']);
+
 const NavBar = () => {
   const [scrolledPath, setScrolledPath] = useState(null);
   const [drawerPath, setDrawerPath] = useState(null);
   const { pathname, search, hash } = useLocation();
   const locationKey = `${pathname}${search}${hash}`;
   const normalizedPath = pathname.replace(/\/+$/u, '') || '/';
-  const lightPublicRoute = normalizedPath === '/blog' || normalizedPath.startsWith('/blog/');
+  const lightPublicRoute = !LEGACY_DARK_ROUTES.has(normalizedPath);
   const scrolled = scrolledPath === pathname;
   const opaqueNav = scrolled || lightPublicRoute;
   const drawerOpen = drawerPath === locationKey;

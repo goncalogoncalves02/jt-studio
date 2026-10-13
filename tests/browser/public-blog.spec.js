@@ -192,6 +192,73 @@ test('missing blog pages return a real 404 and client navigation keeps 404 and h
   await expect.poll(() => anchor.evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(240);
 });
 
+test('404 surfaces render a readable navbar consistently across SSR and hydration', async ({ page, request }) => {
+  const find = (node, predicate) => [ ...(predicate(node) ? [node] : []), ...(node.childNodes ?? []).flatMap((child) => find(child, predicate)), ...(node.content ? find(node.content, predicate) : []) ];
+  const classesFromHtml = (html) => {
+    const parsed = parse(html);
+    const nav = find(parsed, (node) => node.tagName === 'nav')[0];
+    return nav.attrs.find((attribute) => attribute.name === 'class').value;
+  };
+  const assertContrast = async (selector, property = 'color') => {
+    const snapshot = await page.locator('nav').evaluate((nav, options) => {
+      const surface = getComputedStyle(document.querySelector('main > *')).backgroundColor;
+      const navStyle = getComputedStyle(nav);
+      const foreground = getComputedStyle(nav.querySelector(options.selector))[options.property];
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 1;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      context.fillStyle = surface;
+      context.fillRect(0, 0, 2, 1);
+      context.fillStyle = navStyle.backgroundColor;
+      context.fillRect(0, 0, 2, 1);
+      const background = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+      context.fillStyle = foreground;
+      context.fillRect(1, 0, 1, 1);
+      const text = [...context.getImageData(1, 0, 1, 1).data].slice(0, 3);
+      const luminance = ([r, g, b]) => {
+        const linear = (channel) => {
+          const value = channel / 255;
+          return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+      };
+      const [lighter, darker] = [luminance(text), luminance(background)].sort((a, b) => b - a);
+      return { contrast: (lighter + 0.05) / (darker + 0.05), classes: [...nav.classList], surface, background: navStyle.backgroundColor };
+    }, { selector, property });
+    expect(snapshot.contrast, JSON.stringify(snapshot)).toBeGreaterThanOrEqual(4.5);
+    return snapshot;
+  };
+
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    for (const [route, expectedStatus] of [['/blog/not-in-this-release', 404], ['/404', 200], ['/admin', 200]]) {
+      const rawResponse = await request.get(route);
+      expect(rawResponse.status()).toBe(expectedStatus);
+      const serverClasses = classesFromHtml(await rawResponse.text());
+      const response = await page.goto(route);
+      expect(response.status()).toBe(expectedStatus);
+      await expect(page.locator('main')).toContainText('Página não encontrada');
+      const clientClasses = await page.locator('nav').getAttribute('class');
+      expect(clientClasses).toBe(serverClasses);
+      expect(clientClasses).toContain('bg-ink/92');
+      expect(clientClasses).toContain('transition-none');
+      if (viewport.width > 700) await assertContrast('ul a[href="/blog"]');
+      else {
+        await assertContrast('nav > button');
+        await assertContrast('nav > button', 'borderTopColor');
+      }
+    }
+    if (viewport.width > 700) await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
+    else {
+      await page.getByRole('button', { name: 'Abrir menu' }).click();
+      await page.locator('.fixed.inset-0').getByRole('link', { name: 'Blog', exact: true }).click();
+    }
+    await expect(page).toHaveURL(`${localBase}/blog`);
+    await expect(page.locator('main h1')).toContainText('Notas de beleza');
+  }
+});
+
 test('mobile Blog navigation closes the menu and keeps public pages responsive', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
