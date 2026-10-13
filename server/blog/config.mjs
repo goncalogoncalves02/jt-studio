@@ -11,13 +11,16 @@ export class BlogConfigError extends Error {
   }
 }
 
-export function createBoundedFetch(timeoutMs, fetchImpl = fetch) {
+export function createBoundedFetch(timeoutMs, fetchImpl = fetch, parentSignal) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || typeof fetchImpl !== 'function') {
     throw new TypeError('A bounded fetch requires a positive timeout and fetch implementation.');
   }
   return (input, init = {}) => {
     const timeout = AbortSignal.timeout(timeoutMs);
-    const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+    const signals = [timeout];
+    if (parentSignal) signals.push(parentSignal);
+    if (init.signal) signals.push(init.signal);
+    const signal = signals.length === 1 ? timeout : AbortSignal.any(signals);
     return fetchImpl(input, { ...init, signal });
   };
 }
@@ -57,10 +60,10 @@ export function readBlogConfig(env = process.env) {
   });
 }
 
-export function createServerClient(config) {
+export function createServerClient(config, { signal, fetchImpl = fetch } = {}) {
   return createClient(config.supabaseUrl, config.serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { fetch: createBoundedFetch(6_000) },
+    global: { fetch: createBoundedFetch(6_000, fetchImpl, signal) },
   });
 }
 

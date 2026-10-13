@@ -12,8 +12,12 @@ begin
   update blog_private.settings
   set authorized_owner_id = v_owner_id
   where singleton;
-  insert into blog_private.admin_sessions (session_id, user_id, auth_session_id, generation, expires_at)
-  values (v_session_id, v_owner_id, v_session_id, 1, clock_timestamp() + interval '10 minutes');
+  insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+  values(v_owner_id,'authenticated','authenticated','task3-editorial-inputs@example.invalid','',clock_timestamp(),'{}'::jsonb,'{}'::jsonb,clock_timestamp(),clock_timestamp());
+  insert into auth.sessions(id,user_id,created_at,updated_at,not_after)
+  values(v_session_id,v_owner_id,clock_timestamp(),clock_timestamp(),null);
+  insert into blog_private.admin_sessions (session_id, user_id, auth_session_id, generation, expires_at, auth_expires_at)
+  values (v_session_id, v_owner_id, v_session_id, 1, clock_timestamp() + interval '10 minutes', clock_timestamp() + interval '10 minutes');
   perform set_config('request.jwt.claim.sub', v_owner_id::text, true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub',v_owner_id,'session_id',v_session_id)::text, true);
 

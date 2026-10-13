@@ -1,5 +1,53 @@
 begin;
 
+create temporary table task3_publication_owned_fixture (
+  request_id uuid primary key,
+  release_id uuid not null,
+  owner_id uuid not null,
+  generation bigint not null
+) on commit drop;
+
+create function pg_temp.task3_fail_release_own_reservation(p_request_id uuid) returns void
+language plpgsql
+set search_path=pg_catalog,blog_private,pg_temp
+as $$
+declare v_fixture record; v_rows integer;
+begin
+  select q.request_id,q.release_id,q.owner_id,q.publication_generation
+    into strict v_fixture
+  from blog_private.build_slot b
+  join blog_private.publication_requests q on q.request_id=b.active_request_id
+  join blog_private.settings s on s.singleton
+  where b.singleton and b.active_request_id=p_request_id
+    and b.latest_confirmed_release_id=q.release_id
+    and b.generation=q.publication_generation
+    and q.owner_id=s.authorized_owner_id and q.state='confirmed'
+    and not exists(select 1 from blog_private.publication_dispatch_attempts a where a.request_id=q.request_id)
+  for update of b,q;
+  insert into task3_publication_owned_fixture(request_id,release_id,owner_id,generation)
+  values(v_fixture.request_id,v_fixture.release_id,v_fixture.owner_id,v_fixture.publication_generation);
+  update blog_private.publication_requests q
+    set state='failed',updated_at=clock_timestamp()
+    where q.request_id=v_fixture.request_id and q.owner_id=v_fixture.owner_id
+      and q.release_id=v_fixture.release_id and q.publication_generation=v_fixture.publication_generation
+      and q.state='confirmed'
+      and not exists(select 1 from blog_private.publication_dispatch_attempts a where a.request_id=q.request_id);
+  get diagnostics v_rows = row_count;
+  if v_rows <> 1 then raise exception 'Task 3 owned request failure affected % rows; expected one',v_rows; end if;
+  update blog_private.build_slot b
+    set active_request_id=null,updated_at=clock_timestamp()
+    where b.singleton and b.active_request_id=v_fixture.request_id
+      and b.latest_confirmed_release_id=v_fixture.release_id
+      and b.generation=v_fixture.publication_generation
+      and exists(select 1 from blog_private.publication_requests q where q.request_id=v_fixture.request_id
+        and q.owner_id=v_fixture.owner_id and q.release_id=v_fixture.release_id
+        and q.publication_generation=v_fixture.publication_generation and q.state='failed')
+      and not exists(select 1 from blog_private.publication_dispatch_attempts a where a.request_id=v_fixture.request_id);
+  get diagnostics v_rows = row_count;
+  if v_rows <> 1 then raise exception 'Task 3 owned slot release affected % rows; expected one',v_rows; end if;
+end;
+$$;
+
 do $task3_publication$
 declare
   v_empty_release record;
@@ -10,6 +58,7 @@ declare
   v_payload jsonb;
   v_base_posts jsonb;
   v_post_id uuid;
+  v_request_id uuid := gen_random_uuid();
   v_index integer;
   v_slug_prefix text := 'snapshot-' || gen_random_uuid()::text;
 begin
@@ -55,8 +104,12 @@ begin
   end;
 
   update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
-  insert into blog_private.admin_sessions (session_id, user_id, auth_session_id, generation, expires_at)
-  values (v_session_id, v_owner_id, v_session_id, 1, clock_timestamp() + interval '10 minutes');
+  insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+  values(v_owner_id,'authenticated','authenticated','task3-publication-base@example.invalid','',clock_timestamp(),'{}'::jsonb,'{}'::jsonb,clock_timestamp(),clock_timestamp());
+  insert into auth.sessions(id,user_id,created_at,updated_at,not_after)
+  values(v_session_id,v_owner_id,clock_timestamp(),clock_timestamp(),null);
+  insert into blog_private.admin_sessions (session_id, user_id, auth_session_id, generation, expires_at, auth_expires_at)
+  values (v_session_id, v_owner_id, v_session_id, 1, clock_timestamp() + interval '10 minutes', clock_timestamp() + interval '10 minutes');
   perform set_config('request.jwt.claim.sub', v_owner_id::text, true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub',v_owner_id,'session_id',v_session_id)::text, true);
 
@@ -84,11 +137,12 @@ begin
   end loop;
   v_summary := public.blog_publication_summary(v_session_id, 1);
   v_payload := (public.blog_freeze_release(
-    '00000000-0000-0000-0000-000000000304', 1, v_session_id, v_summary ->> 'digest'
+    v_request_id, 1, v_session_id, v_summary ->> 'digest'
   ) ->> 'payload')::jsonb -> 'posts';
   if jsonb_array_length(v_payload) <> jsonb_array_length(v_base_posts) + 101 then
     raise exception 'freezing 101 new posts must preserve the existing snapshot base';
   end if;
+  perform pg_temp.task3_fail_release_own_reservation(v_request_id);
 end;
 $task3_publication$;
 
@@ -123,6 +177,7 @@ declare
   v_request_one uuid := gen_random_uuid();
   v_request_two uuid := gen_random_uuid();
   v_request_three uuid := gen_random_uuid();
+  v_request_four uuid := gen_random_uuid();
   v_replay_count bigint;
 begin
   select b.latest_confirmed_release_id, r.payload_text::jsonb -> 'posts'
@@ -136,8 +191,12 @@ begin
   end if;
 
   update blog_private.settings set authorized_owner_id = v_owner_id where singleton;
-  insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at)
-  values (v_session_id,v_owner_id,v_session_id,1,clock_timestamp()+interval '10 minutes');
+  insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+  values(v_owner_id,'authenticated','authenticated','task3-publication-scenarios-'||v_owner_id||'@example.invalid','',clock_timestamp(),'{}'::jsonb,'{}'::jsonb,clock_timestamp(),clock_timestamp());
+  insert into auth.sessions(id,user_id,created_at,updated_at,not_after)
+  values(v_session_id,v_owner_id,clock_timestamp(),clock_timestamp(),null);
+  insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at,auth_expires_at)
+  values (v_session_id,v_owner_id,v_session_id,1,clock_timestamp()+interval '10 minutes',clock_timestamp()+interval '10 minutes');
   perform set_config('request.jwt.claim.sub',v_owner_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v_owner_id,'session_id',v_session_id)::text,true);
 
@@ -180,7 +239,7 @@ begin
     or not exists(select 1 from blog_private.releases r where r.release_id=v_first_release_id and r.payload_text=v_first->>'payload' and r.digest=v_first->>'digest') then
     raise exception 'first release exact bytes and digest were not persisted';
   end if;
-  update blog_private.publication_requests set state='failed' where request_id=v_request_one;
+  perform pg_temp.task3_fail_release_own_reservation(v_request_one);
 
   perform public.blog_mark_prepared(v_d_id,1,'remove',v_session_id,1);
   v_result := public.blog_save_post(jsonb_build_object(
@@ -243,6 +302,8 @@ begin
   end;
   if not v_stale then raise exception 'same request id with a conflicting digest must fail'; end if;
 
+  perform pg_temp.task3_fail_release_own_reservation(v_request_two);
+
   v_summary := public.blog_publication_summary(v_session_id,1);
   v_digest := v_summary->>'digest';
   v_result := public.blog_save_post(jsonb_build_object(
@@ -275,8 +336,9 @@ begin
 
   v_summary := public.blog_publication_summary(v_session_id,1);
   v_digest := v_summary->>'digest';
-  v_first := public.blog_freeze_release(gen_random_uuid(),1,v_session_id,v_digest);
+  v_first := public.blog_freeze_release(v_request_four,1,v_session_id,v_digest);
   v_third_release_id := (v_first->>'releaseId')::uuid;
+  perform pg_temp.task3_fail_release_own_reservation(v_request_four);
   v_stale := false;
   begin
     perform public.blog_freeze_release(gen_random_uuid(),1,v_session_id,v_digest);

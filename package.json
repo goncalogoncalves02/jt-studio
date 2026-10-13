@@ -12,6 +12,7 @@
     "build:fixture:published": "node scripts/build-blog.mjs --mode fixture --release tests/fixtures/published-release.json --outDir dist/published-fixture",
     "build:fixture:browser": "node scripts/build-public-browser-fixture.mjs",
     "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:db": "node scripts/test-db.mjs",
     "test:legacy": "node --test tests/legacy/legacy-build.test.mjs",
     "test:browser": "playwright test",
     "build:media-harness": "node scripts/build-media-harness.mjs",

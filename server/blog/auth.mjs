@@ -39,6 +39,10 @@ export class BlogAuthError extends Error {
   }
 }
 
+function assertDeadline(signal) {
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Request deadline elapsed', 'TimeoutError');
+}
+
 function validateKey(key) {
   const result = Buffer.isBuffer(key) ? Buffer.from(key) : (typeof key === 'string' && /^[a-f0-9]{64}$/iu.test(key) ? Buffer.from(key, 'hex') : null);
   if (!result || result.length !== 32) throw new TypeError('Session encryption key is invalid');
@@ -140,20 +144,22 @@ function normalizedTokens(session) {
 
 function expirationSeconds(tokens) { return tokens.expires_at; }
 
-async function verifiedAuthUser(config, tokens, suppliedClient) {
-  const authClient = suppliedClient ?? createAuthClient(config, undefined, createBoundedFetch(8_000));
+async function verifiedAuthUser(config, tokens, suppliedClient, { signal, fetchImpl = fetch } = {}) {
+  const authClient = suppliedClient ?? createAuthClient(config, undefined, createBoundedFetch(8_000, fetchImpl, signal));
   const { data, error } = await authClient.auth.getUser(tokens.access_token);
+  assertDeadline(signal);
   if (error || !data?.user?.id) throw new BlogAuthError(401);
   return data.user;
 }
 
-async function refreshTokens(config, serviceClient, session) {
+async function refreshTokens(config, serviceClient, session, { signal, fetchImpl = fetch } = {}) {
   const claimId = randomUUID();
   const claimed = await claimAdminRefresh(serviceClient, {
     sessionId: session.session_id,
     generation: Number(session.generation),
     claimId,
   });
+  assertDeadline(signal);
   if (!claimed || claimed.claim_id !== claimId) {
     throw new BlogAuthError(503, 'BLOG_SESSION_REFRESH_PENDING', 'Session renewal is being reconciled. Keep this page open and try again shortly.');
   }
@@ -162,15 +168,15 @@ async function refreshTokens(config, serviceClient, session) {
   let response;
   let refreshed;
   try {
-    response = await fetch(new URL(AUTH_URL_PATH, config.supabaseUrl), {
+    response = await createBoundedFetch(8_000, fetchImpl, signal)(new URL(AUTH_URL_PATH, config.supabaseUrl), {
       method: 'POST',
       headers: { apikey: config.anonKey, 'content-type': 'application/json' },
       body: JSON.stringify({ refresh_token: oldTokens.refresh_token }),
-      signal: AbortSignal.timeout(8_000),
       redirect: 'error',
     });
     if (!response.ok) throw new Error('refresh response was not accepted');
     const payload = await response.json();
+    assertDeadline(signal);
     refreshed = normalizedTokens(payload);
   } catch {
     await failAdminRefresh(serviceClient, {
@@ -178,12 +184,13 @@ async function refreshTokens(config, serviceClient, session) {
       generation: Number(session.generation),
       claimId,
     }).catch(() => {});
+    assertDeadline(signal);
     throw new BlogAuthError(401);
   }
 
   let refreshedUser;
   try {
-    refreshedUser = await verifiedAuthUser(config, refreshed);
+    refreshedUser = await verifiedAuthUser(config, refreshed, undefined, { signal, fetchImpl });
     assertSessionIdentity(refreshedUser, refreshed, session.user_id, session.auth_session_id);
   } catch {
     await failAdminRefresh(serviceClient, {
@@ -191,6 +198,7 @@ async function refreshTokens(config, serviceClient, session) {
       generation: Number(session.generation),
       claimId,
     }).catch(() => {});
+    assertDeadline(signal);
     throw new BlogAuthError(401);
   }
   const completed = await completeAdminRefresh(serviceClient, {
@@ -200,6 +208,7 @@ async function refreshTokens(config, serviceClient, session) {
     authExpiresAt: new Date(expirationSeconds(refreshed) * 1000).toISOString(),
     tokenCiphertext: encryptTokens(refreshed, config.encryptionKey),
   });
+  assertDeadline(signal);
   const completedGeneration = Number(completed);
   if (!Number.isSafeInteger(completedGeneration) || completedGeneration !== Number(session.generation) + 1) throw new BlogAuthError(401);
   return { tokens: refreshed, generation: completedGeneration, user: refreshedUser };
@@ -256,6 +265,8 @@ export async function login({ email, password }, request, options = {}) {
 
 export async function requireAdmin(request, { mutation = false, csrfToken, forLogout = false, mutationContentType } = {}, options = {}) {
   const config = options.config ?? readBlogConfig();
+  const deadlineSignal = options.deadlineSignal;
+  const fetchImpl = options.fetchImpl ?? fetch;
   const requestedContentType = request.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
   let expectedContentType = 'application/json';
   if (mutationContentType === 'image/webp') {
@@ -273,8 +284,9 @@ export async function requireAdmin(request, { mutation = false, csrfToken, forLo
   }
   const cookieValue = parseSessionCookie(request.headers.get('cookie'));
   if (!cookieValue) throw new BlogAuthError(401);
-  const serviceClient = options.serviceClient ?? createServerClient(config);
+  const serviceClient = options.serviceClient ?? createServerClient(config, { signal: deadlineSignal, fetchImpl });
   const session = await findAdminSession(serviceClient, cookieDigest(cookieValue));
+  assertDeadline(deadlineSignal);
   if (!session || typeof config.ownerId !== 'string' || session.user_id !== config.ownerId) throw new BlogAuthError(401);
 
   const nowMs = (options.now ?? new Date()).valueOf();
@@ -317,17 +329,19 @@ export async function requireAdmin(request, { mutation = false, csrfToken, forLo
   let generation = Number(session.generation);
   let user;
   if (tokens.expires_at - Math.floor(nowMs / 1000) < config.refreshBeforeSeconds) {
-    const refreshed = await refreshTokens(config, serviceClient, session);
+    const refreshed = await refreshTokens(config, serviceClient, session, { signal: deadlineSignal, fetchImpl });
     tokens = refreshed.tokens;
     generation = refreshed.generation;
     user = refreshed.user;
   } else {
-    user = await verifiedAuthUser(config, tokens);
+    user = await verifiedAuthUser(config, tokens, undefined, { signal: deadlineSignal, fetchImpl });
+    assertDeadline(deadlineSignal);
     assertSessionIdentity(user, tokens, session.user_id, session.auth_session_id);
   }
 
   const expectedGeneration = generation;
   const currentSession = await findAdminSession(serviceClient, cookieDigest(cookieValue));
+  assertDeadline(deadlineSignal);
   const revalidatedAt = (typeof options.now === 'function' ? options.now() : new Date()).valueOf();
   const currentExpiry = Date.parse(currentSession?.expires_at);
   if (!currentSession
@@ -350,7 +364,8 @@ export async function requireAdmin(request, { mutation = false, csrfToken, forLo
     expiresAt: session.expires_at,
     accessToken: tokens.access_token,
     serviceClient,
-    userSdk: createAuthClient(config, tokens.access_token),
+    userSdk: createAuthClient(config, tokens.access_token, createBoundedFetch(8_000, fetchImpl, deadlineSignal)),
+    deadlineSignal,
     config,
     user,
     csrfToken: createCsrfToken(config.encryptionKey, session.session_id),

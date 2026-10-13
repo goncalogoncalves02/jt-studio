@@ -249,3 +249,75 @@ export async function promoteMedia(auth, mediaIds) {
 }
 
 export function newMediaId() { return randomUUID(); }
+
+export async function promotePublicationVariant(auth, { requestId, mediaId, width } = {}) {
+  assertAuth(auth);
+  if (!UUID_PATTERN.test(auth.authSessionId ?? '')) throw new BlogMediaError(401, 'BLOG_AUTH_REQUIRED');
+  const publicationMutation = (name, parameters) => auth.serviceClient.rpc(name, {
+    p_user_id: auth.userId, p_session_id: auth.sessionId, p_auth_session_id: auth.authSessionId,
+    p_generation: auth.generation, ...parameters,
+  });
+  const request = assertMediaId(requestId);
+  const id = assertMediaId(mediaId);
+  if (!Number.isInteger(width) || width < 1 || width > MAX_SIDE) throw invalidMedia();
+  const assertWithinDeadline = () => {
+    if (auth.deadlineSignal?.aborted) throw auth.deadlineSignal.reason ?? new DOMException('Publication request deadline elapsed', 'TimeoutError');
+  };
+
+  assertWithinDeadline();
+  const manifestResult = await publicationMutation('blog_publication_variant_manifest', {
+    p_request_id: request,
+    p_media_id: id,
+    p_width: width,
+  });
+  const manifest = manifestResult?.data;
+  if (manifestResult?.error || !manifest || manifest.requestId !== request || manifest.mediaId !== id
+      || manifest.ownerId !== auth.userId || !UUID_PATTERN.test(manifest.releaseId ?? '') || manifest.width !== width || manifest.mime !== 'image/webp'
+      || !Number.isInteger(manifest.height) || !Number.isSafeInteger(manifest.byteLength)
+      || manifest.byteLength < 1 || manifest.byteLength > MAX_BYTES
+      || !/^[a-f0-9]{64}$/u.test(manifest.sha256 ?? '')
+      || manifest.objectKey !== publicKey(id, width, manifest.sha256)) throw mapRpcError(manifestResult?.error);
+  assertWithinDeadline();
+
+  const sourceKey = privateKey(auth.userId, id, width);
+  const bytes = await storageDownload(auth.serviceClient, PRIVATE_BUCKET, sourceKey);
+  assertWithinDeadline();
+  const validated = await validateWebpVariant(bytes, {
+    width: manifest.width,
+    height: manifest.height,
+    contentType: manifest.mime,
+  });
+  if (validated.sha256 !== manifest.sha256 || validated.byteLength !== manifest.byteLength) throw storageUnavailable();
+
+  // Revalidate the captured session, active request, and immutable manifest after the download and before Storage writes.
+  const beforeUpload = await publicationMutation('blog_publication_variant_manifest', {
+    p_request_id: request,
+    p_media_id: id,
+    p_width: width,
+  });
+  if (beforeUpload?.error || JSON.stringify(beforeUpload?.data) !== JSON.stringify(manifest)) {
+    throw mapRpcError(beforeUpload?.error ?? { code: '42501' });
+  }
+  assertWithinDeadline();
+  await uploadImmutable(auth.serviceClient, PUBLIC_BUCKET, manifest.objectKey, validated.bytes);
+  assertWithinDeadline();
+
+  const recorded = await publicationMutation('blog_publication_record_variant', {
+    p_request_id: request,
+    p_media_id: id,
+    p_width: width,
+    p_object_key: manifest.objectKey,
+    p_sha256: validated.sha256,
+    p_byte_length: validated.byteLength,
+  });
+  if (recorded?.error || !recorded?.data || recorded.data.requestId !== request
+      || recorded.data.releaseId !== manifest.releaseId || recorded.data.state !== 'promoting') {
+    throw mapRpcError(recorded?.error ?? { code: '42501' });
+  }
+  assertWithinDeadline();
+  return Object.freeze({
+    mediaId: id,
+    width,
+    url: publicObjectUrl(auth, manifest.objectKey),
+  });
+}

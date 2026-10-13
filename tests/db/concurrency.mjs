@@ -59,6 +59,27 @@ async function waitForBlocking(observer, blockerPid, waiterPid, stage) {
   stop(stage);
 }
 
+async function waitForBlockingChain(observer, blockerPid, waiterPid, stage) {
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline) {
+    const result = await observer.query(`
+      with recursive blocker_chain(pid,path) as (
+        select blocking.pid,array[$2::integer,blocking.pid]::integer[]
+        from unnest(pg_blocking_pids($2::integer)) as blocking(pid)
+        union all
+        select next_blocker.pid,chain.path||next_blocker.pid
+        from blocker_chain chain
+        cross join lateral unnest(pg_blocking_pids(chain.pid)) as next_blocker(pid)
+        where not next_blocker.pid=any(chain.path) and cardinality(chain.path)<32
+      )
+      select path from blocker_chain where pid=$1::integer order by cardinality(path) limit 1`,
+    [blockerPid, waiterPid]);
+    if (Array.isArray(result.rows[0]?.path)) return result.rows[0].path.map(Number);
+    await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+  }
+  stop(stage);
+}
+
 async function waitUntilExpired(observer, expiresAt, stage) {
   const before = await observer.query('select clock_timestamp() < $1::timestamptz as not_expired', [new Date(expiresAt)]);
   if (before.rows[0]?.not_expired !== true) stop(`${stage}-expired-before-block`);
@@ -67,9 +88,9 @@ async function waitUntilExpired(observer, expiresAt, stage) {
   if (after.rows[0]?.expired !== true) stop(`${stage}-expiry-clock`);
 }
 
-async function setJwtSession(client, ownerId, authSessionId) {
-  const claims = JSON.stringify({ sub: ownerId, session_id: authSessionId });
-  await client.query("select set_config('request.jwt.claim.sub',$1,false), set_config('request.jwt.claims',$2,false)", [ownerId, claims]);
+async function setJwtSession(client, ownerId, authSessionId, role = 'authenticated') {
+  const claims = JSON.stringify({ sub: ownerId, session_id: authSessionId, role });
+  await client.query("select set_config('request.jwt.claim.sub',$1,false), set_config('request.jwt.claim.role',$2,false), set_config('request.jwt.claims',$3,false)", [ownerId, role, claims]);
 }
 
 async function expectExpiredDenial(promise, stage) {
@@ -96,6 +117,7 @@ async function run() {
   const snapshotSessionId = randomUUID();
   const writerSessionId = randomUUID();
   const membershipSessionId = randomUUID();
+  const raceSessionId = randomUUID();
   const slug = `task3-expiry-${randomUUID()}`;
   const blocker = makeClient();
   const requester = makeClient();
@@ -103,12 +125,19 @@ async function run() {
   const monitor = makeClient();
   let ownerSetting = false;
   let previousOwnerId;
+  let originalBuildSlot;
+  const ownedRequestIds = [];
+  const ownedReleaseIds = [];
+  let ownerUserCreated = false;
   let locked = false;
   let savedPostId;
   let preparedPostId;
   let snapshotReleaseId;
   let freezeTransactionOpen = false;
   let requestPromise;
+  let pendingConfirmationPromises = [];
+  let pendingDispatchClaimPromises = [];
+  let pendingAppExpiryClaimPromise;
   let membershipPreparePromise;
   let membershipFreezePromise;
   let membershipTableLocked = false;
@@ -124,22 +153,40 @@ async function run() {
     process.stdout.write('PASS PostgreSQL connection reuse leaves a transaction-local custom GUC as an empty string after commit\n');
     const dbIdentity = await observer.query("select current_database() as db, current_setting('server_version_num') as version");
     if (dbIdentity.rows[0]?.db !== 'postgres' || !dbIdentity.rows[0]?.version?.startsWith('17')) stop('database-identity');
+    const serverVersion = Number(dbIdentity.rows[0].version);
+    process.stdout.write(`OBS database=${Math.trunc(serverVersion / 10000)}.${serverVersion % 10000}\n`);
     const setting = await observer.query('select authorized_owner_id from blog_private.settings where singleton for update');
     if (setting.rowCount !== 1 || setting.rows[0].authorized_owner_id !== null) stop('owner-setting-unset-baseline');
     previousOwnerId = setting.rows[0].authorized_owner_id;
+    const slotBaseline = await observer.query('select latest_confirmed_release_id,active_request_id,generation from blog_private.build_slot where singleton');
+    if (slotBaseline.rowCount !== 1 || slotBaseline.rows[0].active_request_id !== null) stop('build-slot-idle-baseline');
+    originalBuildSlot = slotBaseline.rows[0];
     await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton', [ownerId]);
     ownerSetting = true;
     await observer.query(
-      `insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at) values
-       ($1,$2,$1,1,clock_timestamp()+interval '30 minutes'),
-       ($3,$2,$3,1,clock_timestamp()+interval '30 minutes'),
-       ($4,$2,$4,1,clock_timestamp()+interval '30 minutes'),
-       ($5,$2,$5,1,clock_timestamp()+interval '30 minutes'),
-       ($6,$2,$6,1,clock_timestamp()+interval '30 minutes'),
-       ($7,$2,$7,1,clock_timestamp()+interval '30 minutes'),
-       ($8,$2,$8,1,clock_timestamp()+interval '30 minutes'),
-       ($9,$2,$9,1,clock_timestamp()+interval '30 minutes')`,
-      [sessionId, ownerId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId],
+      `insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+       values($1,'authenticated','authenticated',$2,'',clock_timestamp(),'{}'::jsonb,'{}'::jsonb,clock_timestamp(),clock_timestamp())`,
+      [ownerId, `task3-concurrency-${ownerId}@example.invalid`],
+    );
+    ownerUserCreated = true;
+    const fixtureSessions = [sessionId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId, raceSessionId];
+    await observer.query(
+      `insert into auth.sessions(id,user_id,created_at,updated_at,not_after)
+       select session_id,$1,clock_timestamp(),clock_timestamp(),null from unnest($2::uuid[]) session_id`,
+      [ownerId, fixtureSessions],
+    );
+    await observer.query(
+      `insert into blog_private.admin_sessions(session_id,user_id,auth_session_id,generation,expires_at,auth_expires_at) values
+       ($1,$2,$1,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($3,$2,$3,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($4,$2,$4,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($5,$2,$5,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($6,$2,$6,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($7,$2,$7,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($8,$2,$8,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($9,$2,$9,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes'),
+       ($10,$2,$10,1,clock_timestamp()+interval '30 minutes',clock_timestamp()+interval '30 minutes')`,
+      [sessionId, ownerId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId, raceSessionId],
     );
     const inserted = await observer.query(
       "update blog_private.admin_sessions set expires_at=clock_timestamp()+interval '6 seconds' where session_id=$1 returning expires_at",
@@ -310,6 +357,8 @@ async function run() {
     );
     const frozenResult = frozen.rows[0].result;
     snapshotReleaseId = frozenResult.releaseId;
+    ownedRequestIds.push(snapshotRequestId);
+    ownedReleaseIds.push(snapshotReleaseId);
     if (typeof frozenResult.payload !== 'string' || createHash('sha256').update(frozenResult.payload, 'utf8').digest('hex') !== frozenResult.digest) stop('snapshot-exact-text-digest');
     const frozenPayload = JSON.parse(frozenResult.payload);
     const frozenPost = frozenPayload.posts.find((entry) => entry.id === preparedPostId);
@@ -339,6 +388,16 @@ async function run() {
       stop('freeze-save-snapshot-isolation');
     }
     process.stdout.write(`PASS freeze held prepared rows against a concurrent save; immutable snapshot stayed fixed (post=${preparedPostId}, release=${snapshotReleaseId})\n`);
+
+    const releaseSlotAfterSnapshot = await observer.query(
+      `update blog_private.publication_requests set state='failed' where request_id=$1 and owner_id=$2 and state='confirmed' returning request_id`,
+      [snapshotRequestId, ownerId],
+    );
+    const slotFreedAfterSnapshot = await observer.query(
+      'update blog_private.build_slot set active_request_id=null where singleton and active_request_id=$1 returning singleton',
+      [snapshotRequestId],
+    );
+    if (releaseSlotAfterSnapshot.rowCount !== 1 || slotFreedAfterSnapshot.rowCount !== 1) stop('snapshot-fixture-slot-release');
 
     await setJwtSession(observer, ownerId, membershipSessionId);
     const membershipA = await observer.query('select public.blog_save_post($1::jsonb,0,$2::uuid,1) as result', [
@@ -427,16 +486,200 @@ async function run() {
       stop('late-ready-article-was-consumed-by-unrelated-freeze');
     }
     process.stdout.write('PASS a late readiness mutation physically waited on the freeze build-slot lock and remained in the next summary; pg_blocking_pids confirmed both waits\n');
+
+    const racingSummary = await monitor.query('select public.blog_publication_summary($1::uuid,1) as summary', [membershipSessionId]);
+    const raceRequestA = randomUUID();
+    const raceRequestB = randomUUID();
+    ownedRequestIds.push(raceRequestA, raceRequestB);
+    const raceBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
+    const raceRequesterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
+    const raceMonitorPid = Number((await monitor.query('select pg_backend_pid() as pid')).rows[0].pid);
+    await blocker.query('begin');
+    await blocker.query('select singleton from blog_private.build_slot where singleton for update');
+    locked = true;
+    await setJwtSession(requester, ownerId, membershipSessionId);
+    await setJwtSession(monitor, ownerId, raceSessionId);
+    const confirmationA = requester.query('select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
+      [raceRequestA, membershipSessionId, racingSummary.rows[0].summary.digest]);
+    const confirmationB = monitor.query('select public.blog_freeze_release($1::uuid,1,$2::uuid,$3) as result',
+      [raceRequestB, raceSessionId, racingSummary.rows[0].summary.digest]);
+    pendingConfirmationPromises = [confirmationA, confirmationB];
+    confirmationA.catch(() => {});
+    confirmationB.catch(() => {});
+    const chainA = await waitForBlockingChain(observer, raceBlockerPid, raceRequesterPid, 'publication-confirmation-slot-pg-blocking-pids');
+    const chainB = await waitForBlockingChain(observer, raceBlockerPid, raceMonitorPid, 'publication-confirmation-second-slot-blocker-chain-pg-blocking-pids');
+    const slotHolderLock = await observer.query(`select exists(select 1 from pg_locks
+      where pid=$1 and relation='blog_private.build_slot'::regclass and mode='RowShareLock' and granted) as holds_slot_relation`, [raceBlockerPid]);
+    if (slotHolderLock.rows[0]?.holds_slot_relation !== true) stop('publication-slot-holder-relation-lock');
+    process.stdout.write(`OBS publication-pg-blocking-chain-a=${chainA.join('>')} chain-b=${chainB.join('>')} holder=${raceBlockerPid} holds=blog_private.build_slot:RowShareLock\n`);
+    await blocker.query('commit');
+    locked = false;
+    const raceResults = await Promise.allSettled([confirmationA, confirmationB]);
+    const raceWinner = raceResults.filter((result) => result.status === 'fulfilled');
+    const raceLoser = raceResults.filter((result) => result.status === 'rejected');
+    if (raceWinner.length !== 1 || raceLoser.length !== 1 || raceLoser[0].reason?.code !== '40001') stop('publication-confirmation-single-reservation');
+    const winnerRequestId = raceResults[0].status === 'fulfilled' ? raceRequestA : raceRequestB;
+    const winnerReleaseId = raceWinner[0].value.rows[0]?.result?.releaseId;
+    const reservation = await observer.query(
+      `select b.active_request_id,r.release_id from blog_private.build_slot b
+       join blog_private.publication_requests r on r.request_id=b.active_request_id where b.singleton`,
+    );
+    if (reservation.rowCount !== 1 || reservation.rows[0].active_request_id !== winnerRequestId
+      || reservation.rows[0].release_id !== winnerReleaseId) stop('publication-confirmation-reservation-persisted-once');
+    ownedRequestIds.push(winnerRequestId);
+    ownedReleaseIds.push(winnerReleaseId);
+    process.stdout.write('PASS two concurrent legacy confirmations physically waited behind the slot-holder; pg_blocking_pids blocker-chain proved both waits and exactly one immutable release/reservation won\n');
+
+    const claimFixture = await observer.query(
+      `select r.publication_generation,b.generation,s.generation as app_generation from blog_private.publication_requests r
+       join blog_private.build_slot b on b.active_request_id=r.request_id
+       join blog_private.admin_sessions s on s.session_id=$2 where r.request_id=$1`, [winnerRequestId, membershipSessionId],
+    );
+    if (claimFixture.rowCount !== 1) stop('publication-dispatch-claim-fixture');
+    const claimGeneration = Number(claimFixture.rows[0].app_generation);
+    if (Number(claimFixture.rows[0].publication_generation) !== Number(claimFixture.rows[0].generation)
+      || claimGeneration !== 1) stop('publication-dispatch-claim-generation');
+    const providerExpiry = await observer.query(
+      "update auth.sessions set not_after=clock_timestamp()+interval '3 seconds' where id=$1 and user_id=$2 returning not_after",
+      [raceSessionId, ownerId],
+    );
+    if (providerExpiry.rowCount !== 1) stop('publication-dispatch-expiry-fixture');
+    const claimProviderExpiresAt = new Date(providerExpiry.rows[0].not_after).getTime();
+    const claimBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
+    const claimRequesterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
+    const claimMonitorPid = Number((await monitor.query('select pg_backend_pid() as pid')).rows[0].pid);
+    await blocker.query('begin');
+    await blocker.query('select singleton from blog_private.build_slot where singleton for update');
+    locked = true;
+    await requester.query('set role service_role');
+    await monitor.query('set role service_role');
+    await setJwtSession(requester, ownerId, membershipSessionId, 'service_role');
+    await setJwtSession(monitor, ownerId, raceSessionId, 'service_role');
+    const roleProbe = await requester.query("select auth.role() as role, current_user as db_role, current_setting('request.jwt.claim.role',true) as claim_role");
+    process.stdout.write(`OBS dispatch-claim-role-probe auth=${roleProbe.rows[0]?.role === 'service_role'} db=${roleProbe.rows[0]?.db_role === 'service_role'} claim=${roleProbe.rows[0]?.claim_role === 'service_role'}\n`);
+    const validAttemptId = randomUUID();
+    const expiredAttemptId = randomUUID();
+    const dispatchClaimA = requester.query(
+      'select public.blog_publication_dispatch_claim($1::uuid,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::uuid) as result',
+      [ownerId, membershipSessionId, membershipSessionId, claimGeneration, winnerRequestId, validAttemptId],
+    );
+    const dispatchClaimB = monitor.query(
+      'select public.blog_publication_dispatch_claim($1::uuid,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::uuid) as result',
+      [ownerId, raceSessionId, raceSessionId, claimGeneration, winnerRequestId, expiredAttemptId],
+    );
+    pendingDispatchClaimPromises = [dispatchClaimA, dispatchClaimB];
+    dispatchClaimA.catch(() => {});
+    dispatchClaimB.catch(() => {});
+    let claimChainA;
+    let claimChainB;
+    try {
+      claimChainA = await waitForBlockingChain(observer, claimBlockerPid, claimRequesterPid, 'publication-dispatch-claim-first-pg-blocking-pids');
+      claimChainB = await waitForBlockingChain(observer, claimBlockerPid, claimMonitorPid, 'publication-dispatch-claim-second-pg-blocking-pids');
+    } catch (error) {
+      const diagnostics = await Promise.allSettled(pendingDispatchClaimPromises);
+      const classes = diagnostics.map((result) => result.status === 'rejected'
+        ? `error:${/^[0-9A-Z]{5}$/u.test(result.reason?.code ?? '') ? result.reason.code : 'unknown'}`
+        : `result:${result.value.rows[0]?.result?.claimed === true ? 'claimed' : 'not-claimed'}`);
+      process.stderr.write(`OBS publication-dispatch-wait-diagnostic=${classes.join(',')}\n`);
+      throw error;
+    }
+    const claimHolderLock = await observer.query(`select exists(select 1 from pg_locks
+      where pid=$1 and relation='blog_private.build_slot'::regclass and mode='RowShareLock' and granted) as holds_slot_relation`, [claimBlockerPid]);
+    if (claimHolderLock.rows[0]?.holds_slot_relation !== true) stop('publication-dispatch-slot-holder-relation-lock');
+    process.stdout.write(`OBS publication-dispatch-pg-blocking-chain-a=${claimChainA.join('>')} chain-b=${claimChainB.join('>')} holder=${claimBlockerPid} holds=blog_private.build_slot:RowShareLock\n`);
+    await waitUntilExpired(observer, claimProviderExpiresAt, 'publication-dispatch-provider-expiry');
+    await blocker.query('commit');
+    locked = false;
+    const claimResults = await Promise.allSettled(pendingDispatchClaimPromises);
+    await Promise.all([requester.query('reset role'), monitor.query('reset role')]);
+    const validClaimIndex = claimResults.findIndex((result) => result.status === 'fulfilled' && result.value.rows[0]?.result?.claimed === true);
+    const deniedClaimIndex = claimResults.findIndex((result) => result.status === 'rejected' && result.reason?.code === '42501');
+    if (validClaimIndex !== 0 || deniedClaimIndex !== 1) stop('publication-dispatch-post-lock-provider-fence');
+    const attempts = await observer.query(
+      'select attempt_id,state from blog_private.publication_dispatch_attempts where request_id=$1', [winnerRequestId],
+    );
+    if (attempts.rowCount !== 1 || attempts.rows[0].attempt_id !== validAttemptId || attempts.rows[0].state !== 'claimed') {
+      stop('publication-dispatch-single-durable-claim');
+    }
+    process.stdout.write('PASS dispatch claims physically waited on build_slot; pg_blocking_pids proved both waits, provider expiry during the wait denied one claim after the lock, and exactly one durable claim remained\n');
+
+    const appExpiry = await observer.query(
+      "update blog_private.admin_sessions set expires_at=clock_timestamp()+interval '3 seconds' where session_id=$1 and generation=1 returning expires_at",
+      [membershipSessionId],
+    );
+    if (appExpiry.rowCount !== 1) stop('publication-dispatch-app-expiry-fixture');
+    const appExpiresAt = new Date(appExpiry.rows[0].expires_at).getTime();
+    const appBlockerPid = Number((await blocker.query('select pg_backend_pid() as pid')).rows[0].pid);
+    const appWaiterPid = Number((await requester.query('select pg_backend_pid() as pid')).rows[0].pid);
+    await blocker.query('begin');
+    await blocker.query('select singleton from blog_private.build_slot where singleton for update');
+    locked = true;
+    await requester.query('set role service_role');
+    await setJwtSession(requester, ownerId, membershipSessionId, 'service_role');
+    pendingAppExpiryClaimPromise = requester.query(
+      'select public.blog_publication_dispatch_claim($1::uuid,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::uuid) as result',
+      [ownerId, membershipSessionId, membershipSessionId, claimGeneration, winnerRequestId, randomUUID()],
+    );
+    pendingAppExpiryClaimPromise.catch(() => {});
+    const appChain = await waitForBlockingChain(observer, appBlockerPid, appWaiterPid, 'publication-dispatch-app-expiry-pg-blocking-pids');
+    process.stdout.write(`OBS publication-dispatch-app-expiry-pg-blocking-chain=${appChain.join('>')} holder=${appBlockerPid}\n`);
+    await waitUntilExpired(observer, appExpiresAt, 'publication-dispatch-app-expiry');
+    await blocker.query('commit');
+    locked = false;
+    let appExpiryDenied = false;
+    try { await pendingAppExpiryClaimPromise; }
+    catch (error) { if (error.code === '42501') appExpiryDenied = true; else throw error; }
+    await requester.query('reset role');
+    const attemptsAfterAppExpiry = await observer.query(
+      'select attempt_id,state from blog_private.publication_dispatch_attempts where request_id=$1', [winnerRequestId],
+    );
+    if (!appExpiryDenied || attemptsAfterAppExpiry.rowCount !== 1
+      || attemptsAfterAppExpiry.rows[0].attempt_id !== validAttemptId) stop('publication-dispatch-post-lock-app-session-fence');
+    process.stdout.write('PASS a claimed request still denies a replay whose captured app session expires while it waits for build_slot; pg_blocking_pids proved the wait and no second claim was written\n');
   } finally {
     if (locked || membershipTableLocked) await blocker.query('rollback').catch(() => {});
     if (freezeTransactionOpen || membershipOuterOpen) await requester.query('rollback').catch(() => {});
     if (requestPromise) await requestPromise.catch(() => {});
     if (membershipFreezePromise) await membershipFreezePromise.catch(() => {});
     if (membershipPreparePromise) await membershipPreparePromise.catch(() => {});
+    if (pendingConfirmationPromises.length) {
+      const outcomes = await Promise.allSettled(pendingConfirmationPromises);
+      for (const outcome of outcomes) {
+        const releaseId = outcome.status === 'fulfilled' ? outcome.value.rows?.[0]?.result?.releaseId : null;
+        if (typeof releaseId === 'string' && !ownedReleaseIds.includes(releaseId)) ownedReleaseIds.push(releaseId);
+      }
+    }
+    if (pendingDispatchClaimPromises.length) {
+      await Promise.allSettled(pendingDispatchClaimPromises);
+      await Promise.all([requester.query('reset role').catch(() => {}), monitor.query('reset role').catch(() => {})]);
+    }
+    if (pendingAppExpiryClaimPromise) {
+      await pendingAppExpiryClaimPromise.catch(() => {});
+      await requester.query('reset role').catch(() => {});
+    }
     if (savedPostId) await observer.query('delete from public.blog_posts where id=$1', [savedPostId]).catch(() => {});
     if (preparedPostId) await observer.query('delete from public.blog_posts where id=$1 and first_confirmed_at is null', [preparedPostId]).catch(() => {});
     if (membershipPostIds.length) await observer.query('delete from public.blog_posts where id=any($1::uuid[]) and first_confirmed_at is null', [membershipPostIds]).catch(() => {});
-    await observer.query('delete from blog_private.admin_sessions where session_id=any($1::uuid[])', [[sessionId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId]]).catch(() => {});
+    if (originalBuildSlot && ownedReleaseIds.length) {
+      const restored = await observer.query(
+        `update blog_private.build_slot set latest_confirmed_release_id=$1,active_request_id=$2,generation=$3,updated_at=clock_timestamp()
+         where singleton and exists(select 1 from blog_private.settings s where s.singleton and s.authorized_owner_id=$4)
+           and latest_confirmed_release_id=any($5::uuid[])
+           and (active_request_id is null or active_request_id=any($6::uuid[]))
+         returning latest_confirmed_release_id,active_request_id,generation`,
+        [originalBuildSlot.latest_confirmed_release_id, originalBuildSlot.active_request_id, originalBuildSlot.generation,
+          ownerId, ownedReleaseIds, ownedRequestIds],
+      );
+      if (restored.rowCount !== 1) stop('build-slot-fixture-restore');
+      const verifiedSlot = await observer.query('select latest_confirmed_release_id,active_request_id,generation from blog_private.build_slot where singleton');
+      if (verifiedSlot.rowCount !== 1
+        || verifiedSlot.rows[0].latest_confirmed_release_id !== originalBuildSlot.latest_confirmed_release_id
+        || verifiedSlot.rows[0].active_request_id !== originalBuildSlot.active_request_id
+        || Number(verifiedSlot.rows[0].generation) !== Number(originalBuildSlot.generation)) stop('build-slot-fixture-restore-verify');
+      process.stdout.write('PASS physical concurrency restored the captured logical build-slot memento; immutable requests/releases retained\n');
+    }
+    await observer.query('delete from blog_private.admin_sessions where session_id=any($1::uuid[])', [[sessionId, postSessionId, freezeSlotSessionId, freezePostSessionId, freshSessionId, snapshotSessionId, writerSessionId, membershipSessionId, raceSessionId]]).catch(() => {});
+    if (ownerUserCreated) await observer.query('delete from auth.users where id=$1', [ownerId]).catch(() => {});
     if (ownerSetting) await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton and authorized_owner_id=$2', [previousOwnerId, ownerId]).catch(() => {});
     await Promise.all([blocker.end().catch(() => {}), requester.end().catch(() => {}), observer.end().catch(() => {}), monitor.end().catch(() => {})]);
     await close();

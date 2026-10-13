@@ -35,3 +35,19 @@ test('bounded Supabase fetch preserves caller abort and imposes an independent t
   }));
   await assert.rejects(boundedFetch('https://auth.example.test/user'), error => error.name === 'TimeoutError');
 });
+
+test('bounded fetch observes the publication-wide deadline and waits for the transport to abort', async () => {
+  const deadline = new AbortController();
+  let transportSettled = false;
+  const boundedFetch = createBoundedFetch(5000, (_input, init) => new Promise((resolve, reject) => {
+    init.signal.addEventListener('abort', () => {
+      transportSettled = true;
+      reject(init.signal.reason);
+    }, { once: true });
+    setTimeout(() => resolve(new Response('late response')), 30);
+  }), deadline.signal);
+  const pending = boundedFetch('https://auth.example.test/user');
+  deadline.abort(new DOMException('request deadline elapsed', 'TimeoutError'));
+  await assert.rejects(pending, error => error.name === 'TimeoutError');
+  assert.equal(transportSettled, true);
+});

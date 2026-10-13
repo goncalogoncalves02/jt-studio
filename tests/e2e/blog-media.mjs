@@ -64,10 +64,11 @@ function safePrivateObjectReadCode(body) {
 }
 
 async function jsonResponse(url, init = {}) {
+  const startedAt = performance.now();
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(15000), redirect: 'manual' });
   let body;
   try { body = await response.json(); } catch { body = null; }
-  return { response, body };
+  return { response, body, elapsedMs: Math.round(performance.now() - startedAt) };
 }
 
 async function directStorageRequest(url, { method = 'GET', anonKey, accessToken, body } = {}) {
@@ -131,7 +132,7 @@ async function readLocalStatus() {
   } finally { await proxy.close(); }
 }
 
-function functionEnvironment(status, ownerId, encryptionKey, taskHome, supabaseUrl = status.API_URL) {
+function functionEnvironment(status, ownerId, encryptionKey, taskHome, supabaseUrl = status.API_URL, hookStubUrl) {
   const allow = new Set(['PATH', 'LANG', 'LC_ALL', 'TMPDIR']);
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => allow.has(key)));
   return {
@@ -145,6 +146,47 @@ function functionEnvironment(status, ownerId, encryptionKey, taskHome, supabaseU
     BLOG_ADMIN_USER_ID: ownerId,
     BLOG_SESSION_ENCRYPTION_KEY: encryptionKey,
     BLOG_PUBLIC_ORIGIN: appOrigin,
+    BLOG_PUBLICATION_HOOK_URL: 'https://api.netlify.com/build_hooks/Task7Proof123',
+    ...(hookStubUrl ? {
+      JT_TASK7_HOOK_STUB_URL: hookStubUrl,
+      JT_TASK7_HOOK_STUB_PORT: new URL(hookStubUrl).port,
+      JT_TASK7_DIAGNOSTICS: '1',
+      NODE_OPTIONS: `--import=${join(root, 'tests/e2e/netlify-hook-stub.mjs')}`,
+    } : {}),
+  };
+}
+
+function createPublicationHookStub() {
+  const calls = [];
+  const allRequests = [];
+  const postRequests = [];
+  const server = http.createServer(async (request, response) => {
+    const received = { method: request.method, pathOk: request.url?.split('?', 1)[0] === '/capture', branchOk: request.url?.includes('?trigger_branch=main') === true, jsonContentType: /^application\/json(?:;|$)/iu.test(request.headers['content-type'] ?? '') };
+    allRequests.push(received);
+    if (request.method === 'POST') postRequests.push(received);
+    const chunks = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    let body;
+    try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { body = null; }
+    received.bodyShapeOk = Boolean(request.method === 'POST' && body && Object.keys(body).length === 3
+        && ['requestId','releaseId','attemptId'].every((key) => typeof body[key] === 'string'
+          && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(body[key])));
+    const valid = request.method === 'POST' && request.url === '/capture?trigger_branch=main'
+      && /^application\/json(?:;|$)/iu.test(request.headers['content-type'] ?? '')
+      && received.pathOk && received.branchOk && received.jsonContentType && received.bodyShapeOk;
+    if (!valid) { response.writeHead(400).end(); return; }
+    calls.push(body);
+    response.writeHead(204).end();
+  });
+  return {
+    calls,
+    allRequests,
+    postRequests,
+    async listen() {
+      await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
+      return `http://127.0.0.1:${server.address().port}/capture`;
+    },
+    close: () => new Promise((resolveClose) => server.close(resolveClose)),
   };
 }
 
@@ -280,14 +322,22 @@ export async function runMediaProof() {
   const temp = await mkdtemp(join(tmpdir(), 'jt-studio-task5-media-'));
   let netlifyProcess;
   let storageProxy;
+  let publicationHookStub;
   let ownerId;
   let otherUserId;
   let ownerSet = false;
+  let originalBuildSlot;
+  let task7RequestId;
+  let task7ReleaseId;
+  let task7Generation;
   let primaryError;
   try {
     await db.connect();
     const initial = await db.query('select authorized_owner_id from blog_private.settings where singleton');
     check(initial.rowCount === 1 && initial.rows[0].authorized_owner_id === null, 'owner-baseline-not-null');
+    const slotInitial = await db.query('select latest_confirmed_release_id,active_request_id,generation from blog_private.build_slot where singleton');
+    check(slotInitial.rowCount === 1 && slotInitial.rows[0].active_request_id === null, 'task7-build-slot-must-be-idle');
+    originalBuildSlot = slotInitial.rows[0];
 
     const email = `task5-${randomUUID()}@example.com`;
     const password = `T5!${randomUUID()}`;
@@ -321,8 +371,10 @@ export async function runMediaProof() {
     const logs = [];
     storageProxy = createStorageResponseGate(status.API_URL);
     const storageProxyUrl = await storageProxy.listen();
+    publicationHookStub = createPublicationHookStub();
+    const publicationHookStubUrl = await publicationHookStub.listen();
     netlifyProcess = spawn(netlify, ['dev', '--offline', '--no-open', '--port', String(appPort), '--functions-port', String(functionPort), '--functions', 'netlify/functions', '--dir', publicDir], {
-      cwd: root, env: functionEnvironment(status, ownerId, encryptionKey, taskHome, storageProxyUrl), stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: root, env: functionEnvironment(status, ownerId, encryptionKey, taskHome, storageProxyUrl, publicationHookStubUrl), stdio: ['ignore', 'pipe', 'pipe'],
     });
     for (const stream of [netlifyProcess.stdout, netlifyProcess.stderr]) stream.on('data', (chunk) => { if (logs.join('').length < 16000) logs.push(chunk.toString('utf8')); });
     try { await waitForFunction(netlifyProcess); }
@@ -351,6 +403,8 @@ export async function runMediaProof() {
 
     const anonymousPreview = await fetch(`http://127.0.0.1:${appPort}/api/admin/media/preview?mediaId=${mediaId}&width=480`);
     check(anonymousPreview.status === 401, 'anonymous-preview-denied');
+    const anonymousPublication = await fetch(`http://127.0.0.1:${appPort}/api/admin/publication/summary`);
+    check(anonymousPublication.status === 401 && anonymousPublication.headers.get('cache-control') === 'no-store', 'anonymous-publication-summary-denied-no-store');
 
     const first = variants[0];
     const query = new URLSearchParams({ mediaId, width: String(first.width), height: String(first.height) });
@@ -436,9 +490,28 @@ export async function runMediaProof() {
     const savedPost = await savePost(auth, postDraft, 0);
     check(typeof savedPost.id === 'string' && savedPost.revision === 1, 'promotion-post-created-through-editor-rpc');
     await markPrepared(auth, savedPost.id, savedPost.revision, 'upsert');
+    const task7ReadyPostIds = [savedPost.id];
+    for (let index = 1; index < 10; index += 1) {
+      const extraPost = await savePost(auth, {
+        title: `Task 7 ready article ${index + 1}`,
+        slug: `task7-ready-${index + 1}-${randomUUID()}`,
+        excerpt: 'Ready publication batch fixture',
+        document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Task 7 ready body ${index + 1}.` }] }] },
+        coverMediaId: null,
+        serviceId: null,
+      }, 0);
+      check(typeof extraPost.id === 'string' && extraPost.revision === 1, `task7-ready-batch-post-${index + 1}-saved`);
+      await markPrepared(auth, extraPost.id, extraPost.revision, 'upsert');
+      task7ReadyPostIds.push(extraPost.id);
+    }
     const summary = await getPublicationSummary(auth);
     check(typeof summary?.digest === 'string' && /^[a-f0-9]{64}$/.test(summary.digest), 'promotion-publication-summary');
-    const release = await freezeRelease(auth, randomUUID(), summary.digest);
+    task7RequestId = randomUUID();
+    const release = await freezeRelease(auth, task7RequestId, summary.digest);
+    task7ReleaseId = release.releaseId;
+    const requestGeneration = await db.query('select publication_generation from blog_private.publication_requests where request_id=$1', [task7RequestId]);
+    check(requestGeneration.rowCount === 1 && Number(requestGeneration.rows[0].publication_generation) > 0, 'task7-confirmed-reservation-has-generation');
+    task7Generation = Number(requestGeneration.rows[0].publication_generation);
     const confirmedBeforePromotion = await db.query(`
       select b.latest_confirmed_release_id::text release_id,r.payload_text,r.digest
       from blog_private.build_slot b join blog_private.releases r on r.release_id=b.latest_confirmed_release_id
@@ -448,9 +521,53 @@ export async function runMediaProof() {
       && confirmedBeforePromotion.rows[0].payload_text === release.payload && confirmedBeforePromotion.rows[0].digest === release.digest,
     'promotion-release-confirmed-through-editor-rpc');
     const releasePayload = JSON.parse(release.payload);
+    check(task7ReadyPostIds.length === 10
+      && task7ReadyPostIds.every((postId) => releasePayload.posts.some((post) => post.id === postId)),
+    'task7-ten-ready-posts-are-in-one-confirmed-release');
     const releasePost = releasePayload.posts.find((post) => post.id === savedPost.id);
     check(releasePost?.coverMedia?.id === mediaId && Array.isArray(releasePost.coverMedia.variants)
       && releasePost.coverMedia.variants.length === variants.length, 'confirmed-release-references-complete-media');
+
+    const task7StartedAt = performance.now();
+    const task7RequestTimings = [];
+    const replayConfirmation = await jsonResponse(`http://127.0.0.1:${appPort}/api/admin/publication/confirm`, {
+      method: 'POST', headers: { ...mutationHeaders, 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId: task7RequestId, expectedDigest: summary.digest }),
+    });
+    check(replayConfirmation.response.status === 200 && replayConfirmation.body?.state === 'confirmed'
+      && replayConfirmation.body?.releaseId === release.releaseId && !Object.hasOwn(replayConfirmation.body ?? {}, 'payload'),
+    'task7-http-confirmation-replay-is-safe-and-does-not-expose-payload');
+    task7RequestTimings.push(replayConfirmation.elapsedMs);
+    for (let step = 0; step < variants.length + 1; step += 1) {
+      const progress = await jsonResponse(`http://127.0.0.1:${appPort}/api/admin/publication/progress`, {
+        method: 'POST', headers: { ...mutationHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ requestId: task7RequestId }),
+      });
+      task7RequestTimings.push(progress.elapsedMs);
+      const rpcFailure = logs.join('').match(/task7-rpc-sqlstate-([0-9A-Z]{5})/u)?.[1] ?? 'none';
+      check(progress.response.status === 200, `task7-progress-${step}-${progress.response.status}-${progress.body?.error?.code ?? 'no-code'}-sqlstate-${rpcFailure}`);
+      if (progress.body?.state === 'queued') break;
+      check(progress.body?.state === 'promoting' && progress.body?.completedVariant
+        && !JSON.stringify(progress.body).includes('objectKey'),
+      `task7-one-object-progress-${step}-${progress.body?.state ?? 'no-state'}-${progress.body?.error?.code ?? 'no-code'}-hook-requests-${JSON.stringify(publicationHookStub.allRequests)}-posts-${publicationHookStub.postRequests.length}-accepted-${publicationHookStub.calls.length}-boundary-${logs.join('').split(/\n/u).filter((line) => /^task7-(dispatch|hook|rpc-sqlstate)/u.test(line)).join(',')}`);
+    }
+    const publicationStatus = await jsonResponse(`http://127.0.0.1:${appPort}/api/admin/publication/status?requestId=${task7RequestId}`, { headers: { cookie } });
+    task7RequestTimings.push(publicationStatus.elapsedMs);
+    check(publicationStatus.response.status === 200 && publicationStatus.body?.state === 'queued'
+      && publicationStatus.body?.releaseId === release.releaseId, 'task7-http-status-is-queued-not-live');
+    check(publicationHookStub.calls.length === 1 && publicationHookStub.calls[0].requestId === task7RequestId
+      && publicationHookStub.calls[0].releaseId === release.releaseId && publicationHookStub.postRequests.length === 1,
+    'task7-only-one-controlled-hook-post');
+    const repeatedProgress = await jsonResponse(`http://127.0.0.1:${appPort}/api/admin/publication/progress`, {
+      method: 'POST', headers: { ...mutationHeaders, 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId: task7RequestId }),
+    });
+    task7RequestTimings.push(repeatedProgress.elapsedMs);
+    check(repeatedProgress.response.status === 200 && repeatedProgress.body?.state === 'queued'
+      && publicationHookStub.calls.length === 1 && publicationHookStub.postRequests.length === 1,
+    'task7-duplicate-progress-does-not-redispatch');
+    check(task7RequestTimings.every((elapsedMs) => elapsedMs < 48_000), 'task7-each-local-function-request-fits-shared-deadline');
+    process.stdout.write(`OBS task7-local-http elapsed_total_ms=${Math.round(performance.now() - task7StartedAt)} request_ms=${task7RequestTimings.join(',')} hook_total=${publicationHookStub.allRequests.length} hook_posts=${publicationHookStub.postRequests.length} hook_accepted=${publicationHookStub.calls.length}\n`);
 
     const promoted = await promoteMedia(auth, [mediaId]);
     const publicVariants = promoted[mediaId];
@@ -779,6 +896,17 @@ export async function runMediaProof() {
       await new Promise((resolveExit) => netlifyProcess.once('exit', resolveExit));
     }
     if (storageProxy) await storageProxy.close().catch(() => { if (!primaryError) primaryError = new Error('storage-proxy-close'); });
+    if (publicationHookStub) await publicationHookStub.close().catch(() => { if (!primaryError) primaryError = new Error('publication-hook-stub-close'); });
+    if (task7RequestId && task7ReleaseId && Number.isSafeInteger(task7Generation) && originalBuildSlot) {
+      try {
+        const restoredSlot = await db.query(`update blog_private.build_slot
+          set latest_confirmed_release_id=$1,active_request_id=$2,generation=$3,updated_at=clock_timestamp()
+          where singleton and latest_confirmed_release_id=$4 and active_request_id=$5 and generation=$6`,
+        [originalBuildSlot.latest_confirmed_release_id, originalBuildSlot.active_request_id, originalBuildSlot.generation,
+          task7ReleaseId, task7RequestId, task7Generation]);
+        check(restoredSlot.rowCount === 1, 'task7-test-slot-restored-to-exact-baseline');
+      } catch { if (!primaryError) primaryError = new Error('task7-test-slot-restore'); }
+    }
     const fixtureUserIds = [ownerId, otherUserId].filter((id) => typeof id === 'string');
     if (fixtureUserIds.length > 0) {
       try {

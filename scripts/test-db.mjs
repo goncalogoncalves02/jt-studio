@@ -19,6 +19,7 @@ const allowedTests = new Map([
   ['editorial-inputs', 'tests/db/editorial-inputs.sql'],
   ['guard-mutations', 'tests/db/guard-mutations.sql'],
   ['publication', 'tests/db/publication.sql'],
+  ['publication-dispatch', 'tests/db/publication-dispatch.sql'],
   ['storage', 'tests/db/storage.sql'],
 ]);
 
@@ -106,8 +107,14 @@ async function run() {
       application_name: 'jt-studio-task3-db-tests',
     });
     await client.connect();
+    client.on('notice', (notice) => {
+      const stage = /^task7-stage:([a-z0-9-]{1,48})$/u.exec(notice?.message ?? '')?.[1];
+      if (stage) process.stdout.write(`OBS publication-dispatch-stage=${stage}\n`);
+    });
     const identity = await client.query("select current_database() as db, current_setting('server_version_num') as version");
     if (identity.rows[0]?.db !== 'postgres' || !identity.rows[0]?.version?.startsWith('17')) fail('database-identity');
+    const serverVersion = Number(identity.rows[0].version);
+    const serverVersionLabel = `PostgreSQL ${Math.trunc(serverVersion / 10000)}.${serverVersion % 10000}`;
 
     for (const name of names) {
       const sql = await readFile(join(root, allowedTests.get(name)), 'utf8');
@@ -125,7 +132,11 @@ async function run() {
         const line = typeof error?.where === 'string'
           ? /inline_code_block line (\d+) at RAISE/i.exec(error.where)?.[1]
           : undefined;
-        fail(`sql-${name}-${sqlstate}${constraint}${line ? `-raise-line-${line}` : ''}`);
+        const source = typeof error?.where === 'string'
+          ? [...error.where.matchAll(/PL\/pgSQL function ([a-z0-9_.]+)(?:\([^)]*\))? line (\d+)/gi)]
+            .map((match) => `${match[1]}-line-${match[2]}`).slice(-3).join('-via-')
+          : '';
+        fail(`sql-${name}-${sqlstate}${constraint}${line ? `-raise-line-${line}` : ''}${source ? `-${source}` : ''}`);
       }
       process.stdout.write(`PASS ${name}\n`);
       const after = await captureTransactionalTestState(client);
@@ -133,7 +144,7 @@ async function run() {
       catch { fail(`${name}-persisted-side-effects`); }
       process.stdout.write(`PASS ${name}-no-persistent-side-effects\n`);
     }
-    process.stdout.write(`Task-owned PostgreSQL ${identity.rows[0].version.slice(0, 2)} at loopback:${target.port}; ${names.length} SQL gates passed.\n`);
+    process.stdout.write(`Task-owned ${serverVersionLabel} at loopback:${target.port}; ${names.length} SQL gates passed.\n`);
   } finally {
     if (client) await client.end().catch(() => {});
     await proxy.close();

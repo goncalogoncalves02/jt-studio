@@ -43,6 +43,42 @@ test('private Auth tokens round-trip with AES-256-GCM and reject tampering or a 
   assert.throws(() => decryptTokens(tampered, key), /session credentials are unavailable/u);
 });
 
+test('requireAdmin refresh transport is cancelled by the shared request deadline and settles before returning', async () => {
+  const { requireAdmin } = await import('../../server/blog/auth.mjs');
+  const userId = '3010b4ba-15c6-4826-a0df-e7f10fc3ca76';
+  const sessionId = '2f313aa4-5d8c-4be2-a5ce-e7ed3b577ad7';
+  const authSessionId = 'c74277a8-32af-4556-8c53-e46c596abdc9';
+  const now = new Date('2026-10-13T12:00:00.000Z');
+  const expiresAt = Math.floor(now.valueOf() / 1000) + 60;
+  const config = { supabaseUrl: 'http://auth.example.test', anonKey: 'anon-key-for-test', encryptionKey: key,
+    appOrigin: 'https://editor.example.test', ownerId: userId, refreshBeforeSeconds: 120 };
+  const cookie = createSessionCookie(now);
+  const stored = { session_id: sessionId, user_id: userId, auth_session_id: authSessionId, generation: 1,
+    expires_at: '2026-11-12T12:00:00.000Z', token_ciphertext: encryptTokens({ access_token: 'expired-access', refresh_token: 'refresh-fixture', expires_at: expiresAt }, key), refresh_claim_id: null };
+  const events = [];
+  const serviceClient = { rpc: async (name, args) => {
+    events.push(name);
+    if (name === 'blog_admin_session_lookup') return { data: stored, error: null };
+    if (name === 'blog_admin_session_refresh_claim') return { data: { claim_id: args.p_claim_id }, error: null };
+    if (name === 'blog_admin_session_refresh_fail') return { data: true, error: null };
+    throw new Error('Unexpected session RPC');
+  } };
+  const controller = new AbortController();
+  let transportSettled = false;
+  const fetchImpl = (_input, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => { transportSettled = true; reject(init.signal.reason); }, { once: true });
+  });
+  const request = new Request('https://editor.example.test/api/admin/publication/progress', {
+    headers: { cookie: `__Host-jt_admin=${cookie.value}` },
+  });
+  const timer = setTimeout(() => controller.abort(new DOMException('request deadline elapsed', 'TimeoutError')), 10);
+  try {
+    await assert.rejects(requireAdmin(request, {}, { config, serviceClient, now, deadlineSignal: controller.signal, fetchImpl }), error => error.name === 'TimeoutError');
+  } finally { clearTimeout(timer); }
+  assert.equal(transportSettled, true);
+  assert.deepEqual(events, ['blog_admin_session_lookup', 'blog_admin_session_refresh_claim', 'blog_admin_session_refresh_fail']);
+});
+
 test('logout cookie expires the same host-only Secure cookie without exposing credentials', () => {
   const header = clearSessionCookie();
   assert.match(header, /^__Host-jt_admin=;/u);

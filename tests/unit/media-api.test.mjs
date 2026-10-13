@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
-import { BlogMediaError, promoteMedia, readPrivateVariant, uploadVariant, validateWebpVariant } from '../../server/blog/media.mjs';
+import { BlogMediaError, promoteMedia, promotePublicationVariant, readPrivateVariant, uploadVariant, validateWebpVariant } from '../../server/blog/media.mjs';
 
 async function webp(options = {}) {
   return sharp({ create: { width: options.width ?? 40, height: options.height ?? 20, channels: 4, background: '#c04070' } })
@@ -158,4 +158,37 @@ test('internal promotion writes immutable bytes to the approved public bucket pa
   assert.equal(uploads[0].options.upsert, false);
   assert.deepEqual(uploads[0].bytes, bytes);
   assert.equal(result[mediaId][0].url, `https://project.example.test/storage/v1/object/public/blog-public/${objectKey}`);
+});
+
+test('publication promotes exactly one confirmed immutable object and records its verified bytes after Storage returns', async () => {
+  const bytes = await webp();
+  const mediaId = '00000000-0000-4000-8000-000000000305';
+  const requestId = '00000000-0000-4000-8000-000000000306';
+  const releaseId = '00000000-0000-4000-8000-000000000307';
+  const userId = '3010b4ba-15c6-4826-a0df-e7f10fc3ca76';
+  const digest = createHash('sha256').update(bytes).digest('hex');
+  const objectKey = `public/${mediaId}/40-${digest}.webp`;
+  const events = [];
+  const auth = { userId, sessionId: '2f313aa4-5d8c-4be2-a5ce-e7ed3b577ad7', authSessionId: '2f313aa4-5d8c-4be2-a5ce-e7ed3b577ad8', generation: 3, userSdk: {},
+    config: { supabaseUrl: 'https://task-project.supabase.co' },
+    serviceClient: {
+      rpc: async (name, parameters) => {
+        events.push(['rpc', name, parameters]);
+        if (name === 'blog_publication_variant_manifest') return { data: { requestId, releaseId, mediaId, ownerId: userId, width: 40, height: 20, mime: 'image/webp', byteLength: bytes.length, sha256: digest, objectKey }, error: null };
+        if (name === 'blog_publication_record_variant') return { data: { requestId, releaseId, state: 'promoting' }, error: null };
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      storage: { from: bucket => ({
+        download: async key => { events.push(['download', bucket, key]); return { data: new Blob([bytes]), error: null }; },
+        upload: async (key, body, options) => { events.push(['upload', bucket, key, options]); assert.deepEqual(body, bytes); return { data: {}, error: null }; },
+      }) },
+    },
+  };
+  const result = await promotePublicationVariant(auth, { requestId, mediaId, width: 40 });
+  assert.deepEqual(result, { mediaId, width: 40, url: `https://task-project.supabase.co/storage/v1/object/public/blog-public/${objectKey}` });
+  assert.deepEqual(events.map(event => event[0]), ['rpc', 'download', 'rpc', 'upload', 'rpc']);
+  assert.equal(events[2][1], 'blog_publication_variant_manifest');
+  assert.equal(events[3][1], 'blog-public');
+  assert.equal(events[3][3].upsert, false);
+  assert.equal(events[4][1], 'blog_publication_record_variant');
 });

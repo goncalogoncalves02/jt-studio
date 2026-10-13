@@ -1,6 +1,6 @@
 # Blog development and verification
 
-> **Estado em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente. Os gates finais afetados passaram: build legacy, lint completo, browser 29/29, legacy 3/3 e checker limpo 108 rotas/4 aliases/100 artigos. Unit 131/131 e checkers de fixture vazia (8 rotas) e publicada (10 rotas) são provas anteriores válidas de contratos inalterados e não foram repetidos no gate final R8. Ler [o ponto de retoma](blog-handoff.md) e o [relatório independente](../.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md). Task 7 é a próxima fatia planeada, ainda não iniciada e dependente de nova instrução explícita. CI remoto, produção e dispositivo físico não foram verificados.
+> **Estado em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente. A Task 7 foi implementada e os gates locais terminaram; aguarda revisão independente do coordenador, sem aceitação declarada. A implementação usa deadline partilhado de 48 s por pedido de Function, limitado pelos tetos existentes de 6/8/12 s dos transports, progresso persistente por objeto e claim durável de dispatch. Gates: 143 unitários, 6 gates SQL em PostgreSQL 17.11, concorrência física com `pg_blocking_pids`, E2E local Functions/Auth/Storage e hook stub, lint, build legacy, 3 legacy, 29 browser, fixtures vazia/publicada e checker limpo de 100 artigos. No E2E local, seis pedidos demoraram 1,949 s no total, cada um 269–398 ms; o stub recebeu e aceitou exatamente um POST. Estes tempos medem apenas o ambiente local. CI remoto, hook real, cloud, produção e dispositivo físico não foram verificados. Evidência Task 7 em `.superpowers/sdd/2026-10-11-blog-editorial/task7-implementation-20261013/`.
 
 The repository uses Node.js **24.21.0** for local builds and verification. `.nvmrc`
 records that version; Netlify's build environment selects it in `netlify.toml`.
@@ -261,6 +261,7 @@ Run Task 3 behavior gates only against that ready local project:
 
 ```sh
 node scripts/test-db.mjs editorial editorial-inputs guard-mutations publication
+node scripts/test-db.mjs publication-dispatch
 node scripts/test-backend.mjs
 node tests/db/concurrency.mjs
 npm run test:unit
@@ -275,6 +276,28 @@ back all data and schema changes. The Data API gate uses disposable Auth JWTs
 only for actual owner/non-owner/anonymous RLS and RPC-grant checks; it does not
 test persistent Auth-session lifecycle. Concurrency evidence must come from real
 physical PostgreSQL connections and observed `pg_blocking_pids`, not sleeps.
+
+Task 7 adds `publication-dispatch` to the same scoped transactional runner. The
+runner records the full server version (the current local database is PostgreSQL
+17.11). The Task 3 publication SQL fixture creates random request IDs per run and
+uses a transaction-local helper to mark only its captured owner/request/release/
+generation as failed and release that exact slot, only when there is no dispatch
+claim. It checks one affected row at each transition; the enclosing SQL test rolls
+back, and the runner compares the complete owner/build-slot/request/release/post/
+media/session mementos before and after. Immutable release/request history is
+retained. Never reuse a fixed historical request or clear a slot by request ID
+alone.
+
+Task 7 publication Functions start one 48-second request deadline. Existing
+per-transport caps stay at 6 seconds for service fetches, 8 seconds for Auth, and
+12 seconds for the publication hook; each transport observes both its cap and the
+remaining shared deadline, and abort completion is awaited before the Function
+responds. After a durable dispatch claim, the Function rechecks the same captured
+app/provider session, slot, request, release, generation, and claimed attempt
+through the narrow status RPC before sending the hook. A failed or ambiguous
+check keeps the claim unresolved and sends no POST. The hook counts as `queued` only after a successful POST response;
+ambiguous or lost responses remain `unknown` and are never automatically retried.
+Local E2E uses the controlled hook stub and does not contact Netlify.
 
 The pinned CLI help lists `db advisors --local` and `db lint --local`, but this
 version returned only generic empty `message`/`results` envelopes for both; do not
