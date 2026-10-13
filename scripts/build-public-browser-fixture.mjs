@@ -27,6 +27,21 @@ const posts = Array.from({ length: 100 }, (_, index) => {
     }] };
     post.media = [post.coverMedia];
     post.document.content.push({ type: 'image', attrs: { mediaId, alt: 'Imagem partilhada na capa e no artigo' } });
+    post.document.content.unshift(
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Heading level two' }] },
+      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Heading level three' }] },
+      { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [
+        { type: 'text', text: 'Bullet item with ' }, { type: 'text', text: 'bold emphasis', marks: [{ type: 'bold' }] },
+      ] }] }] },
+      { type: 'orderedList', content: [{ type: 'listItem', content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Ordered item' }] },
+        { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Nested item' }] }] }] },
+      ] }] },
+      { type: 'paragraph', content: [
+        { type: 'text', text: 'External ' }, { type: 'text', text: 'Link seguro', marks: [{ type: 'link', attrs: { href: 'https://example.test/reference' } }] },
+        { type: 'hardBreak' }, { type: 'text', text: 'Internal ' }, { type: 'text', text: 'Serviços', marks: [{ type: 'link', attrs: { href: '/servicos' } }] },
+      ] },
+    );
   }
   return post;
 });

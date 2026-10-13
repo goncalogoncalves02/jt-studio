@@ -68,7 +68,7 @@ export default function BlogPost() {
           </div>
         </header>
         {post.coverMedia ? <PublicImageFigure media={post.coverMedia} alt={post.title} eager sizes="(max-width: 720px) calc(100vw - 44px), 760px" className="mt-10 max-h-[36rem] w-full rounded-md object-cover" /> : null}
-        <div className="mt-10 text-lg leading-8 text-ink">{renderDocument(post.document, mediaMap)}</div>
+        <div className="public-article-content mt-10 text-lg leading-8 text-ink">{renderDocument(post.document, mediaMap)}</div>
         <aside className="mt-14 border-t border-ink/15 pt-8">
           <p className="text-muted">Artigo de Jaqueline Takiuti</p>
           <Link to={serviceHref} className="mt-4 inline-flex min-h-11 items-center rounded-full bg-ink px-6 text-cream">Conhecer serviço relacionado →</Link>

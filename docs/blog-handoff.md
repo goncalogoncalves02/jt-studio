@@ -19,6 +19,14 @@
 > aceitação da Task 6 estão pendentes. Sem push, PR, merge, deploy, Task 7 ou
 > integração com dados/produção. Relatório, ledger, outputs, exit codes e hashes
 > encontram-se em `.superpowers/sdd/2026-10-11-blog-editorial/task6-corrections-20261013/`.
+
+> **Actualização R6, 2026-10-13:** a apresentação DocumentV1 foi completada com
+> estilos limitados ao corpo dos artigos. O teste usa CSS gerado e confirma
+> headings/listas/links/foco por teclado, hidratação SSR e viewport 390px. Gates
+> completos voltaram a passar (129 unit, 27 browser, 3 legacy, fixtures e lint).
+> Correção local em commit filho assinado+DCO de `c44fba5`; revisão independente
+> e aceitação Task 6 continuam pendentes. Reporte/evidência em
+> `.superpowers/sdd/2026-10-11-blog-editorial/task6-formatting-r6-20261013/`.
 >
 > A baseline protegida perdida em `/tmp` foi recuperada do inventário durável
 > exato: 7 containers e 236 volumes continuam presentes. Apenas o mesmo Storage

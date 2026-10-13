@@ -47,6 +47,65 @@ test('shared cover and inline image load together after client navigation', asyn
   expect(sources[0]).toBe(sources[1]);
 });
 
+test('public DocumentV1 formatting is visible, nested, keyboard accessible, and responsive', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.route('**/storage/v1/object/public/blog-public/**', (route) => route.fulfill({ path: 'tests/fixtures/media/small.webp', contentType: 'image/webp' }));
+  const directResponse = await page.goto('/blog/post-000');
+  expect(directResponse.status()).toBe(200);
+  await expect(page.locator('main h1')).toContainText('Artigo sintético 000');
+  await expect(page.locator('.public-article-content h2')).toHaveText('Heading level two');
+  await expect(page.locator('.public-article-content h3')).toHaveText('Heading level three');
+  await expect(page.locator('head script[type="application/ld+json"]')).toHaveCount(3);
+  expect(pageErrors).toEqual([]);
+
+  await page.goto('/blog');
+  await page.locator('main a[href="/blog/post-000"]').first().click();
+  await expect(page).toHaveURL(`${localBase}/blog/post-000`);
+  await expect(page.locator('main h1')).toContainText('Artigo sintético 000');
+  const content = page.locator('main article > div > .mt-10.text-lg.leading-8.text-ink');
+  const presentation = await content.evaluate((root) => {
+    const style = (selector) => {
+      const element = root.querySelector(selector);
+      const css = getComputedStyle(element);
+      return { fontSize: parseFloat(css.fontSize), fontWeight: css.fontWeight, fontFamily: css.fontFamily,
+        listStyleType: css.listStyleType, paddingLeft: parseFloat(css.paddingLeft), color: css.color,
+        textDecoration: css.textDecorationLine, left: element.getBoundingClientRect().left };
+    };
+    return { body: style('p'), h2: style('h2'), h3: style('h3'), ul: style('ul'), ol: style('ol'), nested: style('ol ul'), link: style('a[href="https://example.test/reference"]') };
+  });
+  expect(presentation.h2.fontSize).toBeGreaterThan(presentation.body.fontSize);
+  expect(presentation.h3.fontSize).toBeGreaterThan(presentation.body.fontSize);
+  expect(presentation.h2.fontSize).toBeGreaterThan(presentation.h3.fontSize);
+  expect(presentation.h2.fontFamily).toContain('Fraunces');
+  expect(presentation.ul.listStyleType).toBe('disc');
+  expect(presentation.ol.listStyleType).toBe('decimal');
+  expect(presentation.nested.listStyleType).toBe('circle');
+  expect(presentation.ul.paddingLeft).toBeGreaterThan(0);
+  expect(presentation.ol.paddingLeft).toBeGreaterThan(0);
+  expect(presentation.nested.paddingLeft).toBeGreaterThan(0);
+  expect(presentation.nested.left).toBeGreaterThan(presentation.ol.left);
+  expect(presentation.link.textDecoration).toBe('underline');
+  expect(presentation.link.color).not.toBe(presentation.body.color);
+  await page.locator('main article a[href="/blog"]').first().focus();
+  await page.keyboard.press('Tab');
+  const focused = await page.evaluate(() => ({ href: document.activeElement.getAttribute('href'), outlineStyle: getComputedStyle(document.activeElement).outlineStyle, outlineWidth: getComputedStyle(document.activeElement).outlineWidth }));
+  expect(focused.href).toBe('https://example.test/reference');
+  expect(focused.outlineStyle).toBe('solid');
+  expect(parseFloat(focused.outlineWidth)).toBeGreaterThan(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const mobile = await content.evaluate((root) => ({ width: root.clientWidth, scrollWidth: root.scrollWidth,
+    h2: parseFloat(getComputedStyle(root.querySelector('h2')).fontSize), h3: parseFloat(getComputedStyle(root.querySelector('h3')).fontSize) }));
+  expect(mobile.scrollWidth).toBeLessThanOrEqual(mobile.width);
+  expect(mobile.h2).toBeGreaterThan(mobile.h3);
+  await expect(content.getByText('Ordered item')).toBeVisible();
+  await expect(content.getByText('Nested item')).toBeVisible();
+  await expect(content.getByText('body-sentinel-post-000-unique')).toBeVisible();
+});
+
 test('article HTML has escaped bootstrap data, one BlogPosting schema, and hydrates without errors', async ({ page, request }) => {
   const browserErrors = [];
   await page.route('**/storage/v1/object/public/blog-public/**', (route) => route.fulfill({ path: 'tests/fixtures/media/small.webp', contentType: 'image/webp' }));
