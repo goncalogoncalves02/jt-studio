@@ -1,5 +1,21 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
+> **Aceitação local da etapa 7, 22 de novembro de 2026.** A migração de
+> revalidação da sessão Supabase do commit `9ab1d25` foi aplicada ao PostgreSQL
+> 17.11 do projeto de testes. O inventário revisto preservou os 14 containers
+> e 307 volumes protegidos. Foram retomados os quatro containers do backend
+> e o serviço Storage, mantendo o inicializador parado e o volume existente.
+>
+> Gates finais com Node 24.21.0: lint, 144 testes unitários, seis gates SQL com
+> rollback e mementos iguais, concorrência física, E2E Functions/Auth/Storage,
+> 29 testes browser, três testes legacy, build e checkers das fixtures com
+> 0, 2 e 100 artigos. O E2E confirmou dez artigos numa release e um único POST
+> aceite pelo hook simulado. A primeira tentativa E2E parou por falta da revisão
+> de Chromium do Playwright. A repetição usou o Chromium fixado e passou.
+>
+> Evidência em `.superpowers/sdd/2026-10-11-blog-editorial/task7-local-acceptance-20261122/`.
+> A etapa 8 permanece por iniciar. CI remoto e Netlify real ficam por validar.
+
 > **Estado em 22 de novembro de 2026:** a revisão da etapa 7 no commit `1542c77`
 > identificou uma lacuna na revalidação da sessão Supabase após o lock dos
 > artigos preparados. A migração incremental

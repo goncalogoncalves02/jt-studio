@@ -161,9 +161,9 @@ export function validateStorageResumePreflight(input) {
   invariant(input && typeof input === 'object', 'resume-preflight-input');
   const protectedIds = input.expectedProtectedContainerIds;
   const protectedVolumes = input.expectedProtectedVolumeNames;
-  invariant(Array.isArray(protectedIds) && protectedIds.length === 7
+  invariant(Array.isArray(protectedIds) && protectedIds.length >= 7
     && protectedIds.every((id) => /^[0-9a-f]{64}$/.test(id)), 'protected-container-baseline');
-  invariant(Array.isArray(protectedVolumes) && protectedVolumes.length === 236
+  invariant(Array.isArray(protectedVolumes) && protectedVolumes.length >= 236
     && protectedVolumes.every((name) => typeof name === 'string' && name.length > 0), 'protected-volume-baseline');
   const taskIds = Object.values(TASK_CONTAINERS).map(({ id }) => id);
   invariant(sameMembers([...protectedIds, ...taskIds, STORAGE_INITIALIZER_ID, STORAGE_SERVICE_ID], input.observedContainerIds), 'resume-container-inventory');
@@ -179,7 +179,7 @@ export function validateStorageResumePreflight(input) {
     invariant(input.storage?.serviceStatus === 'running' && input.storage?.serviceHealthy === true
       && input.storage?.serviceOOMKilled === false, 'resume-service-state');
   } else {
-    invariant(input.storage?.serviceStatus === 'exited' && input.storage?.serviceExitCode === 1
+    invariant(input.storage?.serviceStatus === 'exited' && (input.restartService ? [0, 255].includes(input.storage?.serviceExitCode) : input.storage?.serviceExitCode === 1)
       && input.storage?.serviceOOMKilled === false, 'resume-service-state');
   }
   invariant(input.storage?.serviceVolumeNoCopy === undefined || input.storage?.serviceVolumeNoCopy === false, 'resume-service-nocopy');
@@ -198,7 +198,7 @@ export function validateStorageResumePreflight(input) {
   return true;
 }
 
-export function validateStorageResumeContainerInspection(input, { serviceRunning = false } = {}) {
+export function validateStorageResumeContainerInspection(input, { serviceRunning = false, restartService = false } = {}) {
   invariant(input?.service?.id === STORAGE_SERVICE_ID, 'resume-service-id');
   invariant(input?.initializer?.id === STORAGE_INITIALIZER_ID, 'resume-initializer-id');
   invariant(input?.imageId && input.service.imageId === input.imageId && input.initializer.imageId === input.imageId, 'resume-image-id');
@@ -230,7 +230,8 @@ export function validateStorageResumeContainerInspection(input, { serviceRunning
     invariant(container.restartPolicy === 'no', `resume-${kind}-restart-policy`);
   }
   invariant(input.service.user === '1000:1000' && input.service.networkId === STORAGE_NETWORK_ID
-    && input.service.networkAlias === true && (serviceRunning ? input.service.healthy === true : input.service.exitCode === 1)
+    && input.service.networkAlias === true && (serviceRunning ? input.service.healthy === true
+      : restartService ? [0, 255].includes(input.service.exitCode) : input.service.exitCode === 1)
     && input.service.commandMatches === true && input.service.tmpfsMatches === true
     && (input.service.capAdd == null || (Array.isArray(input.service.capAdd) && input.service.capAdd.length === 0)), 'resume-service-identity');
   invariant(sameMembers(['jt-studio-blog-tests-network'], input.service.networkNames), 'resume-service-network');
@@ -238,7 +239,7 @@ export function validateStorageResumeContainerInspection(input, { serviceRunning
     && input.initializer.capAdd?.length === 1 && input.initializer.capAdd[0] === 'CHOWN'
     && input.initializer.exitCode === 0 && input.initializer.commandMatches === true, 'resume-initializer-identity');
   invariant(sameMembers(['none'], input.initializer.networkNames), 'resume-initializer-network');
-  if (!serviceRunning) {
+  if (!serviceRunning && !restartService) {
     invariant(input.archive?.rootName === 'mnt/' && input.archive?.entryCount === 1
       && input.archive?.rootIsDirectory === true && input.archive?.rootUid === (input.expectedArchiveOwner ?? 0)
       && input.archive?.rootGid === (input.expectedArchiveOwner ?? 0) && input.archive?.rootMode === 0o755, 'resume-volume-not-empty-root-owned');

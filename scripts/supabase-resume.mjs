@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { STORAGE_RUNTIME_IDENTITY } from './supabase-storage-runtime.mjs';
+
 export const TASK_RESUME_CONTAINERS = Object.freeze({
   db: Object.freeze({ id: 'bf0489cbc54c05f4471c27ea5ffdf46f550f2bfc130435ceaeddb81832374966', name: 'supabase_db_jt-studio-blog-tests', internalPort: 5432, hostPort: 54342, mounts: [['supabase_db_jt-studio-blog-tests', '/var/lib/postgresql/data']] }),
   rest: Object.freeze({ id: 'fe6fe45271cc83e2a8e313368cf164e808b42ed5f483aa7c95891f14620c6603', name: 'supabase_rest_jt-studio-blog-tests', internalPort: null, hostPort: null, mounts: [] }),
@@ -49,6 +52,31 @@ export function resolveProtectedContainerRows(protectedInventory, observedRows) 
   return resolved;
 }
 
+export function readResumeInventory() {
+  const original = JSON.parse(readFileSync('/tmp/jt-studio-protected-docker-20261011.json', 'utf8'));
+  if (original.protectedContainers?.length !== 7 || original.protectedVolumes?.length !== 236) {
+    throw new Error('Original protected inventory is invalid');
+  }
+
+  let reviewed;
+  try {
+    reviewed = JSON.parse(readFileSync('/tmp/jt-studio-protected-docker-resume.json', 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return original;
+    throw error;
+  }
+  const containers = reviewed.protectedContainers;
+  const volumes = reviewed.protectedVolumes;
+  if (!Array.isArray(containers) || !Array.isArray(volumes)
+      || !containers.every(({ ID, Names }) => /^[0-9a-f]{64}$/.test(ID) && typeof Names === 'string' && Names.length > 0)
+      || !volumes.every(({ Name }) => typeof Name === 'string' && Name.length > 0)
+      || !original.protectedContainers.every(({ ID, Names }) => containers.some((row) => row.ID === ID && row.Names === Names))
+      || !original.protectedVolumes.every(({ Name }) => volumes.some((row) => row.Name === Name))) {
+    throw new Error('Reviewed inventory must preserve the original protected resources');
+  }
+  return reviewed;
+}
+
 export function parseListenerOutput(output, configuredPorts) {
   if (typeof output !== 'string' || !(configuredPorts instanceof Set)) {
     throw new TypeError('Local listener inspection is invalid');
@@ -93,7 +121,8 @@ function assert(condition, message) {
 
 function sameStrings(left, right) {
   return Array.isArray(left) && Array.isArray(right)
-    && left.length === right.length && [...left].sort().every((value, index) => value === [...right].sort()[index]);
+    && left.length === right.length && new Set(left).size === left.length && new Set(right).size === right.length
+    && [...left].sort().every((value, index) => value === [...right].sort()[index]);
 }
 
 export function decideResumeOrder(containers) {
@@ -124,14 +153,19 @@ export function validateResumeStack(input) {
   const observedProtectedContainers = input.observedProtectedContainerIds;
   const expectedProtectedVolumes = input.expectedProtectedVolumeNames;
   const observedProtectedVolumes = input.observedProtectedVolumeNames;
-  assert(Array.isArray(expectedProtectedContainers) && expectedProtectedContainers.length === 7
+  assert(Array.isArray(expectedProtectedContainers) && expectedProtectedContainers.length >= 7
     && sameStrings(expectedProtectedContainers, observedProtectedContainers), 'protected container inventory changed');
-  assert(Array.isArray(expectedProtectedVolumes) && expectedProtectedVolumes.length === 236
+  assert(Array.isArray(expectedProtectedVolumes) && expectedProtectedVolumes.length >= 236
     && sameStrings(expectedProtectedVolumes, observedProtectedVolumes), 'protected volume inventory changed');
   const expectedTaskIds = Object.values(specs).map((spec) => spec.id);
-  const expectedAllContainerIds = [...expectedProtectedContainers, ...expectedTaskIds];
+  const storageIds = [STORAGE_RUNTIME_IDENTITY.existingServiceId, STORAGE_RUNTIME_IDENTITY.existingInitializerId];
+  const storageVolume = STORAGE_RUNTIME_IDENTITY.volumeName;
+  const storagePresent = storageIds.some((id) => input.observedContainerIds.includes(id))
+    || input.observedVolumeNames.includes(storageVolume);
+  const expectedAllContainerIds = [...expectedProtectedContainers, ...expectedTaskIds, ...(storagePresent ? storageIds : [])];
+  const expectedAllVolumes = [...expectedProtectedVolumes, 'supabase_db_jt-studio-blog-tests', ...(storagePresent ? [storageVolume] : [])];
   assert(sameStrings(expectedAllContainerIds, input.observedContainerIds), 'unexpected container inventory entry');
-  assert(sameStrings([...expectedProtectedVolumes, 'supabase_db_jt-studio-blog-tests'], input.observedVolumeNames), 'unexpected volume inventory entry');
+  assert(sameStrings(expectedAllVolumes, input.observedVolumeNames), 'unexpected volume inventory entry');
   assert(input.network?.Id === '4a414b5db8a0304cff2b69a0bddb391614d409125f9981ab8202f6685d805585'
     && input.network?.Name === 'jt-studio-blog-tests-network' && input.network?.Driver === 'bridge'
     && input.network?.Scope === 'local' && input.network?.HostBindingIPv4 === '127.0.0.1'

@@ -1,11 +1,10 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdir, open, readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { request as requestHttp } from 'node:http';
 import { createDockerLoopbackProxy } from './docker-loopback-proxy.mjs';
-import { assertProvisionable, parseContainerInventoryRows, parseListenerOutput, probeTaskServices, resolveProtectedContainerRows, resumeExistingTaskStack, taskContainerReadiness, TASK_RESUME_CONTAINERS, validateResumeStack } from './supabase-resume.mjs';
+import { assertProvisionable, parseContainerInventoryRows, parseListenerOutput, probeTaskServices, readResumeInventory, resolveProtectedContainerRows, resumeExistingTaskStack, taskContainerReadiness, TASK_RESUME_CONTAINERS, validateResumeStack } from './supabase-resume.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const taskHome = '/tmp/jt-studio-supabase-cli-home';
@@ -222,8 +221,7 @@ function inspectResumeContainer(id) {
 }
 
 export function inspectResumeFacts(config) {
-  const inventoryPath = '/tmp/jt-studio-protected-docker-20261011.json';
-  const protectedInventory = JSON.parse(readFileSync(inventoryPath, 'utf8'));
+  const protectedInventory = readResumeInventory();
   if (!Array.isArray(protectedInventory.protectedContainers) || !Array.isArray(protectedInventory.protectedVolumes)) {
     throw new Error('Protected Docker inventory is invalid');
   }

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { assertProvisionable, decideResumeOrder, parseContainerInventoryRows, parseListenerOutput, probeTaskServices, resolveProtectedContainerRows, resumeExistingTaskStack, taskContainerReadiness, validateResumeStack } from '../../scripts/supabase-resume.mjs';
+import { STORAGE_RUNTIME_IDENTITY as storage } from '../../scripts/supabase-storage-runtime.mjs';
 import { createDockerLoopbackProxy } from '../../scripts/docker-loopback-proxy.mjs';
 
 const ids = {
@@ -49,6 +50,22 @@ test('validates the exact task stack and resumes in dependency order', () => {
   const identity = validateResumeStack(input);
   assert.deepEqual(identity.ids, ids);
   assert.deepEqual(decideResumeOrder(input.containers), { order: ['db', 'auth', 'rest', 'kong'], dbAlreadyRunning: false });
+});
+
+test('resumes only backend IDs with a refreshed exact inventory and existing Storage', async () => {
+  const input = fixture();
+  const protectedId = 'a'.repeat(64);
+  input.expectedProtectedContainerIds.push(protectedId);
+  input.observedProtectedContainerIds.push(protectedId);
+  input.expectedProtectedVolumeNames.push('new-protected-volume');
+  input.observedProtectedVolumeNames.push('new-protected-volume');
+  input.observedContainerIds.push(protectedId, storage.existingServiceId, storage.existingInitializerId);
+  input.observedVolumeNames.push('new-protected-volume', storage.volumeName);
+  const started = [];
+  await resumeExistingTaskStack(input, { startContainer: async (_service, id) => { started.push(id); }, waitRunning: async () => {} });
+  assert.deepEqual(started, [ids.db, ids.auth, ids.rest, ids.kong]);
+  assert.throws(() => validateResumeStack({ ...input, observedContainerIds: [...input.observedContainerIds, 'b'.repeat(64)] }), /unexpected container/);
+  assert.throws(() => validateResumeStack({ ...input, observedVolumeNames: input.observedVolumeNames.filter((name) => name !== storage.volumeName) }), /unexpected volume/);
 });
 
 test('accepts the verified all-running stack as an idempotent no-op', () => {

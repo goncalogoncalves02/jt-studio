@@ -220,7 +220,7 @@ Schema proposto: `public.blog_posts`, `blog_media`; `blog_private.settings`, `ad
 
 ## Task 7: Confirmação do conjunto e dispatch idempotente
 
-> **Estado:** autorizada em 13 de outubro de 2026; implementação e gates locais concluídos; revisão independente do coordenador e aceitação pendentes.
+> **Estado:** aceite localmente em 22 de novembro de 2026 após revisão do coordenador, correção em `9ab1d25` e repetição dos gates integrados. Evidência e limites no [handoff](../../blog-handoff.md).
 
 **Files:** criar `server/blog/publication.mjs`, `tests/unit/publication.test.mjs`, `tests/db/publication-dispatch.sql`; ampliar repositories/RPCs e rotas Functions.
 
@@ -230,7 +230,7 @@ Schema proposto: `public.blog_posts`, `blog_media`; `blog_private.settings`, `ad
 - [x] **2 — Executar RED:** evidência RED unitária/SQL/E2E preservada no diretório Task7, incluindo summary sem provider fence e a primeira resposta ambígua `400` do stub. Concorrência física confirma disputa de confirmação e claim com `pg_blocking_pids`.
 - [x] **3 — Implementar:** confirmação reserva uma publicação ativamente; progresso verifica e persiste uma variante por chamada; dispatch reclama uma única tentativa persistente e valida a authority/request/release/generation/attempt capturada através do status RPC imediatamente antes do POST. Hook só usa URL server-side validada, branch `main` fixa e identificadores imutáveis. `unknown` nunca é reenviado automaticamente.
 - [x] **4 — Verificar GREEN:** 143 unit, seis gates SQL em PostgreSQL 17.11, concorrência física, Functions/Auth/Storage E2E local, lint, build, fixtures, browser e checkers verdes; deadline partilhado de 48 s aguardado até transporte abortado assentar. Só aprovação local após resultado HTTP de sucesso marca `queued`.
-- [ ] **5 — Autorrevisão e commit:** rever fronteira de efeito externo e idempotência; commit assinado+DCO `feat: confirm and dispatch batched blog publications`.
+- [x] **5 — Autorrevisão e commit:** rever fronteira de efeito externo e idempotência; commit assinado+DCO `feat: confirm and dispatch batched blog publications`.
 
 ## Task 8: Build serializado e reconciliação do deploy
 

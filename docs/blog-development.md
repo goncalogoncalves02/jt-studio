@@ -250,6 +250,20 @@ operate only on the exact Task 5 container and volume after validating their ful
 IDs, task labels, pinned image, runtime UID, security settings, mounts, and health;
 it never touches the four Task 3 IDs or any protected resource.
 
+The two resume runners use the historical protected inventory and can use a
+separately reviewed full snapshot at `/tmp/jt-studio-protected-docker-resume.json`.
+The reviewed file must contain all original identities and match the current
+Docker container and volume inventory exactly once the pinned blog resources
+are included. Preserve the old snapshot. Review changes to the inventory before
+using a new snapshot. Keep the reviewed file private and outside Git.
+
+When the existing Storage volume has already been initialized, run
+`node scripts/supabase-storage-local.mjs restart-service` after the four backend
+containers are healthy. This verifies the original completion record, container
+identity, configuration and initialized volume, starts only the pinned Storage
+service, then checks health and the inventory again. The original empty-volume
+recovery command remains available for its original failure state.
+
 The migration action verifies the exact project, DB container labels and loopback
 binding, CLI version, and local DB URL; it never accepts a linked project or an
 explicit connection URL. Keep the proxy's prune and volume-delete denials enabled.

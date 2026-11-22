@@ -21,6 +21,8 @@ import {
   validateStorageServiceInspection,
 } from './supabase-storage-runtime.mjs';
 
+import { parseContainerInventoryRows, readResumeInventory, resolveProtectedContainerRows } from './supabase-resume.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const projectId = 'jt-studio-blog-tests';
 const databasePort = 54342;
@@ -307,17 +309,16 @@ export async function readInitialProtectedInventory() {
   return { protectedContainers, protectedVolumes, taskIds: expectedIds, taskRows, network };
 }
 
-async function readResumeProtectedInventory(state, { serviceRunning = false } = {}) {
+async function readResumeProtectedInventory(state, { serviceRunning = false, restartService = false } = {}) {
+  const containers = safeContainerRows();
   let protectedContainers;
   let protectedVolumes;
   try {
-    const original = JSON.parse(await readFile(join(taskDir, 'task3-precontainer-inventory.json'), 'utf8'));
-    const volumes = JSON.parse(await readFile('/tmp/jt-studio-protected-docker-20261011.json', 'utf8'));
-    protectedContainers = original.containers.map((entry) => entry.id);
-    protectedVolumes = volumes.protectedVolumes.map((entry) => entry.Name);
+    const inventory = readResumeInventory();
+    const observed = parseContainerInventoryRows(containers.map(({ ID, Names }) => `${ID}|${Names}`).join('\n'));
+    protectedContainers = resolveProtectedContainerRows(inventory.protectedContainers, observed).map(({ id }) => id);
+    protectedVolumes = inventory.protectedVolumes.map(({ Name }) => Name);
   } catch { fail('protected-inventory-source'); }
-
-  const containers = safeContainerRows();
   const volumes = safeVolumeRows();
   const storageRows = containers.filter((row) => [STORAGE_RUNTIME_IDENTITY.serviceName, STORAGE_RUNTIME_IDENTITY.initializerName]
     .includes(row.Names?.replace(/^\//, '')));
@@ -366,6 +367,7 @@ async function readResumeProtectedInventory(state, { serviceRunning = false } = 
     observedTaskContainerIds: taskRows.map((row) => row.ID),
     storage: ownIds,
     expectServiceRunning: serviceRunning,
+    restartService,
     network,
     unexpectedListeners: unexpectedListeners(currentListenerRows()),
     volume: { name: volume?.Name, driver: volume?.Driver, labels: volume?.Labels },
@@ -728,6 +730,7 @@ function dockerVolumeCreateBody() {
 async function run() {
   if (process.argv[2] === 'resume') return resumeExistingStorage();
   if (process.argv[2] === 'resume-preflight') return resumeExistingStorage({ preflightOnly: true });
+  if (process.argv[2] === 'restart-service') return verifyExistingStorage({ restartService: true });
   if (process.argv[2] === 'verify-existing') return verifyExistingStorage();
   if (process.argv[2] !== 'start') fail('usage');
   const [configText, taskInventory] = await Promise.all([
@@ -830,7 +833,7 @@ async function run() {
   } finally { await proxy.close(); await lock.close(); }
 }
 
-async function verifyExistingStorage() {
+async function verifyExistingStorage({ restartService = false } = {}) {
   let state;
   try {
     state = JSON.parse(await readFile(statePath, 'utf8'));
@@ -844,7 +847,8 @@ async function verifyExistingStorage() {
     fail('verify-existing-state-lock');
   }
   const baseSocket = dockerSocketPath();
-  await readResumeProtectedInventory(state, { serviceRunning: true });
+  if (state.resumeCompleted !== true) fail('verify-existing-state-lock');
+  await readResumeProtectedInventory(state, { serviceRunning: !restartService, restartService });
   assertFreeCapacity();
   const configText = await readFile(join(root, 'supabase/config.toml'), 'utf8');
   const projectConfig = parseTaskProjectConfig(configText);
@@ -884,7 +888,24 @@ async function verifyExistingStorage() {
     initializer: resumeInspectionProjection(initializerInspect, image.imageId, 'initializer'),
     archive,
   };
-  validateStorageResumeContainerInspection(inspection, { serviceRunning: true });
+  validateStorageResumeContainerInspection(inspection, { serviceRunning: !restartService, restartService });
+  if (restartService) {
+    const serviceId = STORAGE_RUNTIME_IDENTITY.existingServiceId;
+    const ids = new Set([serviceId]);
+    const proxy = createDockerLoopbackProxy({
+      upstreamSocketPath: baseSocket,
+      allowedNames: new Set([STORAGE_RUNTIME_IDENTITY.serviceName]),
+      verifiedContainerIds: ids,
+      resumableContainerIds: ids,
+    });
+    try {
+      await readResumeProtectedInventory(state, { restartService: true });
+      await startContainer(await proxy.listen(), serviceId);
+      await waitHealthy(baseSocket, serviceId);
+    } finally { await proxy.close(); }
+    await verifyExistingStorage();
+    return;
+  }
   await verifyService(baseSocket, STORAGE_RUNTIME_IDENTITY.existingServiceId, STORAGE_RUNTIME_IDENTITY.networkId, {
     allowKnownLegacyNoCopy: true,
   });

@@ -256,6 +256,11 @@ test('resume preflight accepts only the exact failed Storage pair and protected 
     },
   };
   assert.equal(validateStorageResumePreflight(base), true);
+  const restart = structuredClone(base);
+  restart.restartService = true;
+  restart.storage.serviceExitCode = 255;
+  assert.equal(validateStorageResumePreflight(restart), true);
+  assert.throws(() => validateStorageResumePreflight({ ...restart, storage: { ...restart.storage, serviceOOMKilled: true } }), /resume-service-state/);
   const running = structuredClone(base);
   running.expectServiceRunning = true;
   running.storage.serviceStatus = 'running';
@@ -341,6 +346,12 @@ test('resume inspection accepts only legacy guarded containers and a raw empty r
   runningInspection.archive = { rootName: 'mnt/', entryCount: 2, rootIsDirectory: true, rootUid: 1000, rootGid: 1000, rootMode: 0o755 };
   assert.equal(validateStorageResumeContainerInspection(runningInspection, { serviceRunning: true }), true);
   assert.throws(() => validateStorageResumeContainerInspection(runningInspection), /resume-service-state/);
+  const restartInspection = structuredClone(runningInspection);
+  restartInspection.service.status = 'exited';
+  restartInspection.service.exitCode = 255;
+  assert.equal(validateStorageResumeContainerInspection(restartInspection, { restartService: true }), true);
+  assert.throws(() => validateStorageResumeContainerInspection({ ...restartInspection, archive: base.archive }, { restartService: true }), /resume-volume-owner/);
+
   const unhealthyRunning = structuredClone(runningInspection);
   unhealthyRunning.service.healthy = false;
   assert.throws(() => validateStorageResumeContainerInspection(unhealthyRunning, { serviceRunning: true }), /resume-service-identity/);
