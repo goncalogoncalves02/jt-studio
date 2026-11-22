@@ -1,5 +1,22 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
+> **Estado em 22 de novembro de 2026:** a revisão da etapa 7 no commit `1542c77`
+> identificou uma lacuna na revalidação da sessão Supabase após o lock dos
+> artigos preparados. A migração incremental
+> `20261122231804_task7_publication_confirmation_provider_fence.sql` acrescenta
+> essa guarda à composição da publicação, preservando a assinatura, os grants
+> e o contrato da RPC pública. A prova de catálogo falhou na definição anterior
+> e passou após a migração num PostgreSQL 18 descartável, com os grants internos
+> preservados. Node 24.21.0: 143/143 testes unitários e lint completos.
+>
+> **Aceitação pendente:** o preflight do runtime original rejeitou o inventário
+> atual por conter recursos adicionais. Os sete containers e os 236 volumes
+> protegidos do inventário anterior continuam presentes. O Supabase de testes
+> não foi iniciado e a migração não foi aplicada nesse ambiente. Faltam os
+> gates SQL, concorrência e E2E do runtime original para fechar a etapa 7.
+> Evidência em `.superpowers/sdd/2026-10-11-blog-editorial/task7-confirmation-review-20261122/`.
+> A etapa 8 permanece por iniciar.
+
 > **Estado autoritativo em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente [R1–R8](../.superpowers/sdd/2026-10-11-blog-editorial/task6-independent-accepted-eb2d5a7-20261013/report.md). Gates finais R8: build legacy; lint completo; browser 29/29; legacy 3/3; build público limpo e checker de 100 artigos (108 rotas/4 aliases). Os 131 testes unitários e os checkers anteriores de fixture vazia (8 rotas) e publicada (10 rotas) continuam válidos para contratos inalterados; não foram novamente executados no gate final R8. CI remoto, Netlify/CDN em produção e dispositivo físico não foram verificados.
 >
 > **Atualização Task 7, 13 de outubro de 2026:** o utilizador autorizou esta fatia; a implementação e os gates locais estão concluídos e aguardam commit/revisão independente do coordenador. Não declarar a Task 7 aceite antes dessa revisão. Inclui confirmação com reserva atómica, progresso persistente por objeto, claim única de dispatch e resultado ambíguo `unknown` sem retry automático, mais deadline partilhado de 48 s nos pedidos de Function. A migração incremental `20261013184937_task7_publication_summary_provider_fence.sql` acrescenta a verificação live da sessão provider ao summary existente, preservando contrato e grants.

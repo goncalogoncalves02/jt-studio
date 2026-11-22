@@ -1,5 +1,26 @@
 begin;
 
+do $confirmation_guard$
+declare
+  v_compose regprocedure := 'public.blog_freeze_release_compose(uuid,bigint,uuid,text)'::regprocedure;
+  v_after_lock text;
+begin
+  select split_part(split_part(prosrc, 'order by p.id for update;', 2), 'v_summary :=', 1)
+  into v_after_lock
+  from pg_proc where oid = v_compose;
+
+  if coalesce(v_after_lock, '') !~ 'if blog_private[.]media_admin_session_live[(]v_owner_id, p_session_id, p_generation[)] is not true then[[:space:]]+raise exception ''editor authorization is required'' using errcode = ''42501'';' then
+    raise exception 'confirmation must revalidate provider authority after the prepared-post locks';
+  end if;
+
+  if has_function_privilege('anon', v_compose, 'EXECUTE')
+    or has_function_privilege('authenticated', v_compose, 'EXECUTE')
+    or has_function_privilege('service_role', v_compose, 'EXECUTE') then
+    raise exception 'the confirmation composition helper must remain internal';
+  end if;
+end;
+$confirmation_guard$;
+
 do $task7_publication_dispatch$
 declare
   v_owner uuid := gen_random_uuid();
