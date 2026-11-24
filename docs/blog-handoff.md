@@ -1,5 +1,24 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
+> **Verificação local da etapa 8, 24 de novembro de 2026.** Os builds de código
+> e do hook partilham uma reserva persistente. A reconciliação confirma um deploy
+> online pela API do Netlify e pelo manifesto público do artefacto. Uma resposta
+> ambígua do hook conserva a reserva e uma falha terminal comprovada permite
+> repetir explicitamente a mesma release.
+>
+> A migração `20261124224000_task8_build_slot_reconciliation.sql` foi aplicada ao
+> PostgreSQL 17.11 local. Gates com Node 24.21.0: lint, 154 testes unitários,
+> sete gates SQL com rollback, E2E com Supabase real e provider Netlify simulado,
+> 29 testes Chromium, três testes legacy e checkers com 0, 2 e 100 artigos.
+> O E2E observou contenção real com `pg_blocking_pids`, perda da resposta do
+> hook, bloqueio de resultados incertos, retry verificado e callback tardio.
+> O slot e os 17 artigos preparados protegidos foram verificados após os testes.
+> O histórico das fixtures sintéticas foi preservado com as autoridades revogadas.
+>
+> Evidência em `.superpowers/sdd/2026-10-11-blog-editorial/task8-local-20261124/`.
+> O teste do Netlify real e da publicação atómica fica pendente de uma integração
+> autorizada. As etapas 9 e 10 permanecem por iniciar.
+
 > **Aceitação local da etapa 7, 22 de novembro de 2026.** A migração de
 > revalidação da sessão Supabase do commit `9ab1d25` foi aplicada ao PostgreSQL
 > 17.11 do projeto de testes. O inventário revisto preservou os 14 containers

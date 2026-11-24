@@ -60,6 +60,20 @@ export function readBlogConfig(env = process.env) {
   });
 }
 
+export function readNetlifyConfig(env = process.env) {
+  const siteId = env.BLOG_NETLIFY_SITE_ID;
+  const apiToken = env.BLOG_NETLIFY_API_TOKEN;
+  const appOrigin = env.BLOG_PUBLIC_ORIGIN;
+  let parsedOrigin;
+  try { parsedOrigin = new URL(appOrigin); } catch { throw new BlogConfigError('Netlify configuration is unavailable.'); }
+  if (typeof siteId !== 'string' || !/^[A-Za-z0-9._-]{3,128}$/u.test(siteId)
+      || typeof apiToken !== 'string' || apiToken.trim().length < 8
+      || parsedOrigin.protocol !== 'https:' || parsedOrigin.origin !== appOrigin) {
+    throw new BlogConfigError('Netlify configuration is unavailable.');
+  }
+  return Object.freeze({ siteId, apiToken, publicOrigin: appOrigin });
+}
+
 export function createServerClient(config, { signal, fetchImpl = fetch } = {}) {
   return createClient(config.supabaseUrl, config.serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

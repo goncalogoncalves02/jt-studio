@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { promotePublicationVariant } from './media.mjs';
+import { verifyDeployEvidence } from './netlify-api.mjs';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/u;
 const HOOK_PATH_PATTERN = /^\/build_hooks\/[A-Za-z0-9_-]{8,128}$/u;
+const DEPLOY_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/u;
 const DEFAULT_HOOK_TIMEOUT_MS = 12_000;
 
 export class BlogPublicationError extends Error {
@@ -53,6 +55,7 @@ function safeStatus(value) {
     releaseId: value.releaseId.toLowerCase(),
     state: value.state,
     ...(UUID_PATTERN.test(value.attemptId ?? '') ? { attemptId: value.attemptId.toLowerCase() } : {}),
+    ...(typeof value.deployId === 'string' && DEPLOY_ID_PATTERN.test(value.deployId) ? { deployId: value.deployId } : {}),
   });
 }
 
@@ -83,7 +86,7 @@ export function parsePublicationHookUrl(value) {
   return url.toString();
 }
 
-export function createPublicationService({ rpc, hookUrl, fetchImpl = fetch, timeoutMs = DEFAULT_HOOK_TIMEOUT_MS, promoteVariant = promotePublicationVariant, deadlineSignal } = {}) {
+export function createPublicationService({ rpc, hookUrl, fetchImpl = fetch, timeoutMs = DEFAULT_HOOK_TIMEOUT_MS, promoteVariant = promotePublicationVariant, netlifyClient, deadlineSignal } = {}) {
   if (typeof rpc !== 'function' || typeof fetchImpl !== 'function' || typeof promoteVariant !== 'function'
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 20_000) {
     throw new TypeError('Publication service dependencies are invalid.');
@@ -174,10 +177,39 @@ export function createPublicationService({ rpc, hookUrl, fetchImpl = fetch, time
     return validateSummary(rpcData(result));
   }
 
+  async function reconcileActiveCodeSlot() {
+    if (!netlifyClient) return;
+    const activeCode = rpcData(await rpc('blog_build_active_code_slot'));
+    assertWithinDeadline();
+    if (!activeCode?.active || !activeCode.deployId || !Number.isSafeInteger(activeCode.generation)) return;
+    const verification = await verifyDeployEvidence({
+      netlifyClient,
+      deployId: activeCode.deployId,
+      releaseId: activeCode.releaseId,
+      expectedDigest: activeCode.expectedDigest,
+      deadlineSignal,
+    });
+    if (verification.outcome === 'live' || verification.outcome === 'failed') {
+      rpcData(await rpc('blog_build_release_code_slot', {
+        p_deploy_id: activeCode.deployId,
+        p_generation: activeCode.generation,
+        p_outcome: verification.outcome === 'live' ? 'ready' : 'failed',
+        p_published_deploy_id: verification.publishedDeployId,
+      }));
+      assertWithinDeadline();
+    }
+  }
+
   async function confirmPublication(auth, { requestId, expectedDigest } = {}) {
     const session = assertPublicationAuth(auth);
     const id = assertUuid(requestId);
     if (!DIGEST_PATTERN.test(expectedDigest ?? '')) throw new BlogPublicationError(400, 'BLOG_INVALID_INPUT');
+    if (netlifyClient) {
+      await reconcileActiveCodeSlot().catch((error) => {
+        if (error instanceof BlogPublicationError && error.status === 409) return;
+        throw error;
+      });
+    }
     const data = rpcData(await session.userSdk.rpc('blog_freeze_release', {
       p_generation: session.generation,
       p_session_id: session.sessionId,
@@ -248,7 +280,56 @@ export function createPublicationService({ rpc, hookUrl, fetchImpl = fetch, time
     return safeStatus(data);
   }
 
-  return Object.freeze({ preparePublication, confirmPublication, advancePublication, retryPublication, statusPublication, dispatchPublication });
+  async function reconcilePublication(auth, { requestId } = {}) {
+    const session = assertPublicationAuth(auth);
+    const id = assertUuid(requestId);
+    if (!netlifyClient) {
+      throw new BlogPublicationError(503, 'BLOG_PUBLICATION_UNAVAILABLE');
+    }
+    const authority = {
+      p_user_id: session.userId,
+      p_session_id: session.sessionId,
+      p_auth_session_id: session.authSessionId,
+      p_generation: session.generation,
+    };
+    const ctx = rpcData(await rpc('blog_publication_reconcile_read', { ...authority, p_request_id: id }));
+    assertWithinDeadline();
+    if (!ctx || typeof ctx !== 'object' || !UUID_PATTERN.test(ctx.releaseId ?? '')) {
+      throw new BlogPublicationError(503, 'BLOG_PUBLICATION_UNAVAILABLE');
+    }
+    if (ctx.state === 'live' || ctx.state === 'failed' || ctx.activeRequestId !== id) {
+      return safeStatus({ requestId: id, releaseId: ctx.releaseId, state: ctx.state, attemptId: ctx.attemptId, deployId: ctx.reconciledDeployId ?? null });
+    }
+    if (!ctx.activeDeployId || !Number.isSafeInteger(ctx.publicationGeneration)) {
+      return safeStatus({ requestId: id, releaseId: ctx.releaseId, state: ctx.state, attemptId: ctx.attemptId });
+    }
+
+    const deployId = ctx.activeDeployId;
+    const verification = await verifyDeployEvidence({
+      netlifyClient,
+      deployId,
+      releaseId: ctx.releaseId,
+      expectedDigest: ctx.expectedDigest,
+      deadlineSignal,
+    });
+    assertWithinDeadline();
+
+    if (verification.outcome === 'pending') {
+      return safeStatus({ requestId: id, releaseId: ctx.releaseId, state: ctx.state, attemptId: ctx.attemptId, deployId });
+    }
+
+    const committed = safeStatus(rpcData(await rpc('blog_publication_reconcile_commit', {
+      ...authority,
+      p_request_id: id,
+      p_publication_generation: ctx.publicationGeneration,
+      p_deploy_id: deployId,
+      p_outcome: verification.outcome,
+      p_published_deploy_id: verification.publishedDeployId,
+    })));
+    return committed;
+  }
+
+  return Object.freeze({ preparePublication, confirmPublication, advancePublication, retryPublication, statusPublication, reconcilePublication, dispatchPublication });
 }
 
 export async function dispatchPublication(auth, requestId, attemptId, dependencies) {

@@ -20,6 +20,7 @@ const allowedTests = new Map([
   ['guard-mutations', 'tests/db/guard-mutations.sql'],
   ['publication', 'tests/db/publication.sql'],
   ['publication-dispatch', 'tests/db/publication-dispatch.sql'],
+  ['build-slot', 'tests/db/build-slot.sql'],
   ['storage', 'tests/db/storage.sql'],
 ]);
 
@@ -37,9 +38,18 @@ async function captureTransactionalTestState(client) {
       (select jsonb_build_object(
         'latest_release', latest_confirmed_release_id,
         'active_request', active_request_id,
+        'active_deploy_id', active_deploy_id,
+        'active_build_kind', active_build_kind,
+        'active_build_release_id', active_build_release_id,
+        'active_build_generation', active_build_generation,
+        'active_attempt_id', active_attempt_id,
+        'last_published_deploy_id', last_published_deploy_id,
+        'last_published_release_id', last_published_release_id,
         'generation', generation,
         'updated_at', updated_at
       ) from blog_private.build_slot where singleton) as build_slot,
+      (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(deploy_id, ',' order by deploy_id), '')))
+        from blog_private.reconciled_deploys) as reconciled_deploys,
       (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(release_id::text, ',' order by release_id), '')))
         from blog_private.releases) as releases,
       (select jsonb_build_object('count', count(*), 'ids_hash', md5(coalesce(string_agg(id::text, ',' order by id), '')))

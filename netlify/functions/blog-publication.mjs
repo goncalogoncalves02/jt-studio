@@ -1,6 +1,7 @@
 import { BlogAuthError, requireAdmin } from '../../server/blog/auth.mjs';
+import { createNetlifyClient } from '../../server/blog/netlify-api.mjs';
 import { BlogPublicationError, createPublicationService } from '../../server/blog/publication.mjs';
-import { createBoundedFetch, readBlogConfig } from '../../server/blog/config.mjs';
+import { createBoundedFetch, readBlogConfig, readNetlifyConfig } from '../../server/blog/config.mjs';
 
 export const config = { path: '/api/admin/publication/*', method: ['GET', 'POST'] };
 
@@ -97,7 +98,27 @@ export default async function blogPublication(request) {
     const body = await readJson(request, deadline.signal);
     if (route === '/api/admin/publication/confirm') {
       if (!exactKeys(body, ['requestId', 'expectedDigest'])) throw new BlogPublicationError(400, 'BLOG_INVALID_INPUT');
-      return json(200, await service.confirmPublication(auth, body));
+      let netlifyClient;
+      try {
+        const netlify = readNetlifyConfig();
+        netlifyClient = createNetlifyClient({
+          siteId: netlify.siteId,
+          apiToken: netlify.apiToken,
+          publicOrigin: netlify.publicOrigin,
+          fetchImpl: createBoundedFetch(8_000, fetch, deadline.signal),
+          deadlineSignal: deadline.signal,
+        });
+      } catch {
+        netlifyClient = undefined;
+      }
+      const confirmService = netlifyClient ? createPublicationService({
+        rpc: (name, args) => auth.serviceClient.rpc(name, args),
+        hookUrl: process.env.BLOG_PUBLICATION_HOOK_URL,
+        fetchImpl: createBoundedFetch(12_000, fetch, deadline.signal),
+        netlifyClient,
+        deadlineSignal: deadline.signal,
+      }) : service;
+      return json(200, await confirmService.confirmPublication(auth, body));
     }
     if (route === '/api/admin/publication/progress') {
       if (!exactKeys(body, ['requestId'])) throw new BlogPublicationError(400, 'BLOG_INVALID_INPUT');
@@ -106,6 +127,24 @@ export default async function blogPublication(request) {
     if (route === '/api/admin/publication/retry') {
       if (!exactKeys(body, ['requestId', 'retryId'])) throw new BlogPublicationError(400, 'BLOG_INVALID_INPUT');
       return json(200, await service.retryPublication(auth, body));
+    }
+    if (route === '/api/admin/publication/reconcile') {
+      if (!exactKeys(body, ['requestId'])) throw new BlogPublicationError(400, 'BLOG_INVALID_INPUT');
+      const netlify = readNetlifyConfig();
+      const reconcileService = createPublicationService({
+        rpc: (name, args) => auth.serviceClient.rpc(name, args),
+        hookUrl: process.env.BLOG_PUBLICATION_HOOK_URL,
+        fetchImpl: createBoundedFetch(12_000, fetch, deadline.signal),
+        netlifyClient: createNetlifyClient({
+          siteId: netlify.siteId,
+          apiToken: netlify.apiToken,
+          publicOrigin: netlify.publicOrigin,
+          fetchImpl: createBoundedFetch(8_000, fetch, deadline.signal),
+          deadlineSignal: deadline.signal,
+        }),
+        deadlineSignal: deadline.signal,
+      });
+      return json(200, await reconcileService.reconcilePublication(auth, body));
     }
     return json(404, { error: { code: 'BLOG_NOT_FOUND', message: 'The publication route was not found.' } });
   } catch (error) { return safeError(error); }

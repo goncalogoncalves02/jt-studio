@@ -1,5 +1,8 @@
 # Blog development and verification
 
+> **Task 8, verified locally on 24 November 2026.** See [the handoff](blog-handoff.md)
+> for the migration, gate evidence and the pending Netlify integration.
+>
 > **Estado em 13 de outubro de 2026:** etapas 1–6 aceites localmente no commit `eb2d5a7e7f53d8db0f624a20e49556219d546f49`, após revisão independente. A Task 7 foi implementada e os gates locais terminaram; aguarda revisão independente do coordenador, sem aceitação declarada. A implementação usa deadline partilhado de 48 s por pedido de Function, limitado pelos tetos existentes de 6/8/12 s dos transports, progresso persistente por objeto e claim durável de dispatch. Gates: 143 unitários, 6 gates SQL em PostgreSQL 17.11, concorrência física com `pg_blocking_pids`, E2E local Functions/Auth/Storage e hook stub, lint, build legacy, 3 legacy, 29 browser, fixtures vazia/publicada e checker limpo de 100 artigos. No E2E local, seis pedidos demoraram 1,949 s no total, cada um 269–398 ms; o stub recebeu e aceitou exatamente um POST. Estes tempos medem apenas o ambiente local. CI remoto, hook real, cloud, produção e dispositivo físico não foram verificados. Evidência Task 7 em `.superpowers/sdd/2026-10-11-blog-editorial/task7-implementation-20261013/`.
 
 The repository uses Node.js **24.21.0** for local builds and verification. `.nvmrc`
@@ -15,8 +18,8 @@ export PLAYWRIGHT_BROWSERS_PATH=/tmp/jt-studio-browsers
 
 ## Current build boundary
 
-`npm run build` remains the existing site build. The confirmed-release reader is not
-installed yet, so it must not fall back to an empty article fixture. The separate
+`npm run build` is the Netlify production command and requires a slot-acquired,
+confirmed release. Use `npm run build:legacy` for the legacy local site. The separate
 `npm run build:fixture` command explicitly selects the synthetic empty release in
 `tests/fixtures/empty-release.json`; `npm run build:fixture:published` explicitly
 selects the two-post test fixture. Both are test-only and are not production
@@ -30,8 +33,31 @@ non-home legacy routes with a trailing slash. Article data is split into a summa
 index and one versioned JSON file per post. The public release manifest contains
 only releaseId, deployId, digest, and schema. Release SHA-256 validation covers the
 exact stored payload text; the build does not reserialize that payload to verify it.
-Task 8 must add confirmed-release sourcing before the production build can publish
-the blog.
+Task 8 adds confirmed-release sourcing via `scripts/production-release.mjs` (`npm run build` runs `node scripts/build-blog.mjs --mode production`, while `npm run build:legacy` preserves the pre-blog client build). Production builds require `CONTEXT=production`, `BRANCH=main`, `DEPLOY_ID`, matching
+`SITE_ID` and `BLOG_NETLIFY_SITE_ID`, `BLOG_PUBLIC_ORIGIN`, and
+`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`. Use `BLOG_PUBLIC_STORAGE_ORIGIN`
+when its HTTPS origin differs from `SUPABASE_URL`. Configure
+`BLOG_NETLIFY_API_TOKEN` for reconciliation in the production build and Functions.
+Keep privileged variables scoped to the server and the builds that need them.
+
+### Task 8 build-slot operation and recovery
+
+- **Serialized build slot:** Both `main` code builds and editorial hook builds acquire `blog_private.build_slot` via `blog_build_acquire` before reading an immutable release, and re-verify `blog_build_assert_current` before concluding. While a code build holds the slot, editorial confirmation (`blog_freeze_release`) is blocked (`40001`). While an editorial request holds the slot, only a strictly URL-decoded `INCOMING_HOOK_BODY` matching `{ requestId, releaseId, attemptId }` can acquire the build; hooks without a body or malformed payloads fail closed.
+- **Reconciliation (`POST /api/admin/publication/reconcile`):** Reads slot/request context in a short DB call, queries `GET /api/v1/deploys/{deploy_id}` and `GET /api/v1/sites/{site_id}` on `https://api.netlify.com` (`redirect: 'error'`, no DB locks held across HTTP), and commits via generation-fenced CAS (`blog_publication_reconcile_commit`).
+- **`unknown` and interrupted builds:** Timeouts, 404s, wrong site/context/branch, or ready-but-unpublished deploys keep the slot blocked and never write `unknown` as `failed`. If a build is interrupted or its hook response was lost without a known `DEPLOY_ID`, the slot remains blocked (`unknown` is never retried automatically or via `retry`); an operator must inspect the Netlify site deploys/hook logs manually to obtain the `DEPLOY_ID` or confirm no deploy was created before any manual recovery. Only provider terminal failure (`error`/`rejected`/`canceled`/`cancelled` with a valid different `published_deploy.id`) clears the build identity as `failed` while keeping `active_request_id` reserved and preserving `last_published_release_id`.
+- **Explicit retry:** Only the active `failed` request (`active_request_id === requestId`, `active_deploy_id === null`, and `release_id === latest_confirmed_release_id`) can be retried via `POST /api/admin/publication/retry`, preserving the original confirmed snapshot (`release_id`) and issuing a fresh attempt. Historical inactive failed requests and ambiguous `unknown` states are rejected.
+- **Live confirmation:** Marking `live` requires `state === 'ready'`, `site.published_deploy.id === deployId`, and a matching `/blog-release.json` (`releaseId`, `deployId`, `digest`, `schema: 1`) on `BLOG_PUBLIC_ORIGIN`.
+
+A subsequent production build or editorial confirmation can reconcile a preceding
+code build. Missing production credentials or inconclusive provider evidence leave
+the existing reservation in place. An operator needs separate approval before
+repairing production state manually.
+
+Run `npm run test:db -- build-slot` and
+`npm run test:e2e -- tests/e2e/publication.spec.js` against the task-owned local
+Supabase. The E2E uses a loopback provider, generates a production artefact in a
+temporary directory and revokes only its own fixture authority. This gate leaves
+the real Netlify publication and atomic deploy contract pending.
 `vite.config.js` remains unchanged because its existing React SWC and Tailwind plugins
 are used by both builds; `build-blog.mjs` supplies the independent output directories,
 root, base path, and SSR entry through Vite's per-build options.
@@ -41,7 +67,8 @@ root, base path, and SSR entry through Vite's per-build options.
 Run these from the repository root with Node 24.21.0:
 
 - `npm run lint` — full ESLint gate; passed for the accepted Task 6 tree.
-- `npm run build` — existing production build; remains independent of fixture data.
+- `npm run build` — Netlify production build from the immutable confirmed release.
+- `npm run build:legacy` — local build of the original site for legacy verification.
 - `npm run build:fixture` — explicit synthetic-release client/SSR rendering proof.
 - `npm run test:unit` — discovers every `tests/unit/*.test.mjs` module, covering metadata, script-safe bootstrap serialization, and raw HTML for all five existing routes. Requires a successful `npm run build:fixture` immediately beforehand; legacy-build artifact checks are kept under `tests/legacy/` so this gate stays fixture-only.
 
@@ -59,16 +86,16 @@ The checked-in codec artifact is regenerated only by the separate, explicit Task
 
 All pre-existing Docker resources are protected. The initial local inventory records 7 containers, 236 volumes, and 197 images; the named services/containers are preserved in the task's ignored evidence. Before creating the compiler container, refresh that inventory and compare it with the recorded protected state. This Docker Desktop daemon cannot bind-mount the host `/tmp`, so the build uses `docker cp` to place verified archives/scripts in one explicitly named and labelled task-owned ephemeral container's writable layer; compilation has no mounts. The container runs as non-root host UID/GID with `--network none`, at most 2 CPUs and 3 GiB memory on the current daemon, and no ports, named volumes or Docker socket. Record the exact container ID and build output before removing only that container by ID. Never prune Docker resources, remove images/volumes, or stop other services as part of this task. The local Docker Desktop runtime and temporary source/build directories are development/test prerequisites, not application dependencies.
 
-- `npm run test:legacy` — confirms that the legacy Vite output still contains its original raw metadata and BeautySalon JSON-LD. Run after `npm run build`; its artifact-dependent test lives outside the unit-test discovery directory.
+- `npm run test:legacy` — confirms that the legacy Vite output still contains its original raw metadata and BeautySalon JSON-LD. Run after `npm run build:legacy`. Its artifact-dependent test lives outside the unit-test discovery directory.
 - `node scripts/check-public-artifacts.mjs` — route metadata, structured data, versioned data, sitemap, hydration payload, cache rules, and public bundle boundary checks. Run after either fixture build.
 - `npm run build:fixture:published` followed by `node scripts/check-public-artifacts.mjs dist/published-fixture/manifest.json` — validates the two-post release fixture independently.
 - `npm run test:browser -- tests/browser/public-blog.spec.js` — runs the public pages against a generated 100-post fixture using the scoped `scripts/static-test-server.mjs`. The server serves existing files first, then returns a real 404 for missing blog/admin paths; it is a local static-hosting equivalent, not evidence from Netlify.
 
 The public renderer accepts only DocumentV1 nodes and promoted `blog-public`
-Storage URLs. SQL release posts retain immutable public object keys without URLs;
-the Task 8 confirmed-release adapter must join promotion results to those keys before
-feeding the renderer. The textual release payload and digest contract remain
-unchanged. Per-post browser navigation requests only that versioned post JSON, not
+Storage URLs. SQL release posts retain immutable public object keys without URLs.
+The renderer constructs the public URLs from those keys after the editorial slot
+verifies that media promotion is complete. It verifies the digest of the exact
+stored payload text. Per-post browser navigation requests only that versioned post JSON, not
 the other article bodies. `/admin` currently renders a noindex not-found page and
 is absent from the sitemap; Task 9 owns the admin UI.
 
