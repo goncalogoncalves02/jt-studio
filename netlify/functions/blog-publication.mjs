@@ -1,4 +1,4 @@
-import { BlogAuthError, requireAdmin } from '../../server/blog/auth.mjs';
+import { assertEditorialSessionCurrent, BlogAuthError, requireAdmin } from '../../server/blog/auth.mjs';
 import { createNetlifyClient } from '../../server/blog/netlify-api.mjs';
 import { BlogPublicationError, createPublicationService } from '../../server/blog/publication.mjs';
 import { createBoundedFetch, readBlogConfig, readNetlifyConfig } from '../../server/blog/config.mjs';
@@ -89,6 +89,32 @@ export default async function blogPublication(request) {
 
     if (request.method === 'GET' && route === '/api/admin/publication/summary') {
       return json(200, await service.preparePublication(auth));
+    }
+    if (request.method === 'GET' && route === '/api/admin/publication/current') {
+      const result = await auth.serviceClient.rpc('blog_publication_current', {
+        p_user_id: auth.userId, p_session_id: auth.sessionId,
+        p_auth_session_id: auth.authSessionId, p_generation: auth.generation,
+      });
+      if (result.error) throw new BlogPublicationError(result.error.code === '42501' ? 403 : 503, 'BLOG_PUBLICATION_UNAVAILABLE');
+      return json(200, { publication: result.data });
+    }
+    if (request.method === 'GET' && route === '/api/admin/publication/review') {
+      const summary = await service.preparePublication(auth);
+      const titles = new Map();
+      const ids = summary.changes.map((change) => change.postId);
+      for (let offset = 0; offset < ids.length; offset += 50) {
+        const result = await auth.userSdk.from('blog_posts').select('id,title,slug,revision,first_confirmed_at')
+          .eq('owner_id', auth.userId).in('id', ids.slice(offset, offset + 50));
+        if (result.error) throw new BlogPublicationError(503, 'BLOG_PUBLICATION_UNAVAILABLE');
+        result.data.forEach((post) => titles.set(post.id, post));
+      }
+      const changes = summary.changes.map((change) => {
+        const post = titles.get(change.postId);
+        if (post?.revision !== change.revision) throw new BlogPublicationError(409, 'BLOG_PUBLICATION_CONFLICT');
+        return { ...change, title: post.title, slug: post.slug, wasConfirmed: Boolean(post.first_confirmed_at) };
+      });
+      await assertEditorialSessionCurrent(auth);
+      return json(200, { ...summary, changes });
     }
     if (request.method === 'GET' && route === '/api/admin/publication/status') {
       return json(200, await service.statusPublication(auth, { requestId: url.searchParams.get('requestId') }));

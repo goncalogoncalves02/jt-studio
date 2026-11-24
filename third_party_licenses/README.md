@@ -9,4 +9,4 @@ The current editor decoder is an original adapter and generated ESM/WASM build f
 - `jsquash-webp-codec-BSD-3-Clause.txt`: WebP encoder codec notice shipped by the jSquash package.
 - `wasm-feature-detect-Apache-2.0.txt`: transitive `wasm-feature-detect` 1.9.0 notice, resolved integrity `sha512-zonE+xlIIYtxPy++L24ow0hAD8CICb4+FgPyROd3buyXIqsJvUEDkBgfCCoXOd1Hu3DUr0GOfnPIdcGV+YpNaA==`.
 
-These packages are loaded by the editor-only worker path. The normal public-site build is checked separately for absence of codec assets.
+These packages are loaded by the editor-only worker path. Published builds include the pinned source archive links and digests in [heif-codec.manifest.json](heif-codec.manifest.json), the [rebuild instructions](build.md), and the original adapter and build scripts beside this notice. The public entry graph is checked for absence of editor and codec code.

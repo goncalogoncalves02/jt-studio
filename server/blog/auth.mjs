@@ -372,6 +372,16 @@ export async function requireAdmin(request, { mutation = false, csrfToken, forLo
   };
 }
 
+export async function assertEditorialSessionCurrent(auth) {
+  const { data, error } = await auth.serviceClient.rpc('blog_media_revalidate_session', {
+    p_user_id: auth.userId,
+    p_session_id: auth.sessionId,
+    p_generation: auth.generation,
+  });
+  if (error && error.code !== '42501') throw new BlogAuthError(503, 'BLOG_SERVICE_UNAVAILABLE');
+  if (data !== true || error) throw new BlogAuthError(401);
+}
+
 const SESSION_MUTATIONS = Object.freeze({
   savePost: async (client, auth, input) => client.rpc('blog_save_post', {
     p_input: input.post,

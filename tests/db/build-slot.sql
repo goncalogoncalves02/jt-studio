@@ -35,6 +35,7 @@ begin
       'public.blog_build_assert_current(text,uuid,bigint)',
       'public.blog_build_release_code_slot(text,bigint,text,text)',
       'public.blog_publication_reconcile_read(uuid,uuid,uuid,bigint,uuid)',
+      'public.blog_publication_current(uuid,uuid,uuid,bigint)',
       'public.blog_publication_reconcile_commit(uuid,uuid,uuid,bigint,uuid,bigint,text,text,text)'
     ]) as rpc(signature)
     where has_function_privilege('anon', signature, 'EXECUTE')
@@ -116,6 +117,19 @@ begin
 
   reset role;
   set local role service_role;
+  perform set_config('request.jwt.claim.role', 'service_role', true);
+  v_status := public.blog_publication_current(v_owner, v_app_session, v_provider_session, 1);
+  if (v_status->>'requestId')::uuid is distinct from v_request or v_status->>'state' <> 'confirmed' then
+    raise exception 'editor should be able to resume this confirmed request';
+  end if;
+  v_error := false;
+  begin
+    perform public.blog_publication_current(v_owner, v_app_session, gen_random_uuid(), 1);
+  exception when sqlstate '42501' then v_error := true;
+  end;
+  if not v_error then raise exception 'another provider session could read current publication'; end if;
+  perform set_config('request.jwt.claim.role', '', true);
+
   perform public.blog_publication_dispatch_claim(v_owner, v_app_session, v_provider_session, 1, v_request, v_attempt);
 
   -- Code build or mismatched hook payload cannot acquire reserved editorial slot.

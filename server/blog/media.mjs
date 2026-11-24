@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
+import { isStaticUploadWebp } from '../../src/blog/webp-upload.js';
+
 const PRIVATE_BUCKET = 'blog-drafts';
 const PUBLIC_BUCKET = 'blog-public';
 const MAX_BYTES = 1024 * 1024;
@@ -36,42 +38,11 @@ function assertAuth(auth) {
   return auth;
 }
 
-function parseWebpChunks(bytes) {
-  if (bytes.length < 20 || bytes.toString('ascii', 0, 4) !== 'RIFF'
-      || bytes.toString('ascii', 8, 12) !== 'WEBP' || bytes.readUInt32LE(4) !== bytes.length - 8) throw invalidMedia();
-  const allowed = new Set(['VP8 ', 'VP8L', 'VP8X', 'ALPH']);
-  let cursor = 12;
-  let count = 0;
-  let extended = false;
-  let primary = 0;
-  let alpha = false;
-  while (cursor < bytes.length) {
-    if (++count > 32 || bytes.length - cursor < 8) throw invalidMedia();
-    const type = bytes.toString('ascii', cursor, cursor + 4);
-    const length = bytes.readUInt32LE(cursor + 4);
-    const dataStart = cursor + 8;
-    const dataEnd = dataStart + length;
-    const paddedEnd = dataEnd + (length % 2);
-    if (dataEnd > bytes.length || paddedEnd > bytes.length || !allowed.has(type)) throw invalidMedia();
-    if (type === 'VP8X') {
-      if (extended || cursor !== 12 || length !== 10 || (bytes[dataStart] & 0x2e) !== 0) throw invalidMedia();
-      extended = true;
-    } else if (type === 'VP8 ' || type === 'VP8L') {
-      if (++primary > 1) throw invalidMedia();
-    } else if (type === 'ALPH') {
-      if (alpha || primary > 0) throw invalidMedia();
-      alpha = true;
-    }
-    cursor = paddedEnd;
-  }
-  if (cursor !== bytes.length || primary !== 1 || (alpha && !extended)) throw invalidMedia();
-}
-
 export async function validateWebpVariant(bytes, { width: claimedWidth, height: claimedHeight, contentType } = {}) {
   if (!(Buffer.isBuffer(bytes) || bytes instanceof Uint8Array) || bytes.byteLength < 20 || bytes.byteLength > MAX_BYTES
       || (contentType !== undefined && contentType !== 'image/webp')) throw invalidMedia();
   const original = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  parseWebpChunks(original);
+  if (!isStaticUploadWebp(original)) throw invalidMedia();
   let metadata;
   try {
     metadata = await sharp(original, { failOn: 'error', limitInputPixels: MAX_PIXELS, sequentialRead: true }).metadata();

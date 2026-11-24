@@ -99,6 +99,10 @@ test('legacy createRoot replaces template metadata without duplicates', async ({
     await route.fulfill({ status: 200, contentType, body });
   });
   await page.route('http://127.0.0.1:4173/', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: legacyHtml }));
+  await page.route('http://127.0.0.1:4173/assets/**', (route) => {
+    const asset = path.basename(new URL(route.request().url()).pathname);
+    return route.fulfill({ path: path.join(projectRoot, 'dist/assets', asset) });
+  });
   page.on('pageerror', (error) => browserErrors.push(error.message));
 
   await page.goto('/');

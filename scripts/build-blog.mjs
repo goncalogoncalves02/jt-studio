@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { createPublicPageData, publicRoutePaths, writePublicFiles, CANONICAL_ORIGIN } from './public-files.mjs';
 import { acquireBuild, assertBuildCurrent } from './production-release.mjs';
 import { renderSitemap } from './sitemap.mjs';
+import { publicClientAssets, writeEditorNotices } from './editor-artifacts.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const routes = ['/', '/servicos', '/info', '/galeria', '/contactos'];
@@ -64,7 +65,7 @@ export async function buildBlog({ mode, release, outDir, env = process.env, rpc,
     const blogRoutes = publicRoutePaths(releaseEnvelope, publicStorageOrigin);
     const clientDir = siteDir;
 
-    await build({ configFile: path.join(projectRoot, 'vite.config.js'), root: projectRoot, base: '/', build: { outDir: clientDir, emptyOutDir: true } });
+    const clientBuild = await build({ configFile: path.join(projectRoot, 'vite.config.js'), root: projectRoot, base: '/', build: { outDir: clientDir, emptyOutDir: true } });
     await build({ configFile: path.join(projectRoot, 'vite.config.js'), root: projectRoot, base: '/', build: { outDir: serverDir, emptyOutDir: true, ssr: path.join(projectRoot, 'src/entry-server.jsx') } });
 
     const template = await readFile(path.join(clientDir, 'index.html'), 'utf8');
@@ -87,6 +88,8 @@ export async function buildBlog({ mode, release, outDir, env = process.env, rpc,
       await writeFile(outputPath, html);
     }
 
+    const publicAssets = publicClientAssets(clientBuild);
+    await writeEditorNotices(siteDir, projectRoot);
     const publicManifest = await writePublicFiles(releaseEnvelope, siteDir, { deployId, publicStorageOrigin });
     const sitemapRoutes = [...routes, '/blog', ...blogRoutes];
     const sitemap = renderSitemap(sitemapRoutes, CANONICAL_ORIGIN);
@@ -119,7 +122,7 @@ export async function buildBlog({ mode, release, outDir, env = process.env, rpc,
       return { mode, releaseId: releaseEnvelope.releaseId, deployId, routes: [...routes, '/blog', ...blogRoutes, '/admin', '/404'], aliases, siteDir: finalSiteDir, publicManifest };
     }
 
-    const manifest = { mode, releaseId: releaseEnvelope.releaseId, routes: [...routes, '/blog', ...blogRoutes, '/admin', '/404'], aliases, clientDir, serverDir, siteDir, publicManifest };
+    const manifest = { mode, releaseId: releaseEnvelope.releaseId, routes: [...routes, '/blog', ...blogRoutes, '/admin', '/404'], aliases, clientDir, serverDir, siteDir, publicManifest, publicAssets };
     await writeFile(path.join(target, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     return manifest;
   } finally {

@@ -1,5 +1,24 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
+> **Implementação local da etapa 9.** O painel `/admin` mantém a navegação,
+> a tipografia e a paleta do site. A lista lateral acompanha o editor em desktop.
+> Em mobile, a lista, a escrita e a revisão têm vistas próprias.
+>
+> O editor visual suporta gravação serial, gestão de conflitos entre abas,
+> imagens privadas com texto alternativo, pré-visualização e revisão do conjunto
+> a publicar. O teste com Auth, Storage, Functions e PostgreSQL locais confirmou
+> um único envio ao provider simulado e o estado online após verificar o deploy
+> e o manifesto gerado. O fallback WebP mantém a regra de ficheiros sem perfis ICC.
+>
+> Aplicada ao PostgreSQL local a migração
+> `20261124231453_task9_editorial_panel.sql`. O painel e os codecs são carregados
+> por módulos separados. O HTML inicial e o sitemap públicos omitem dados editoriais
+> privados. A revisão visual foi feita em Chromium a 390 e 1440 px.
+>
+> Evidência em `.superpowers/sdd/2026-10-11-blog-editorial/task9-local-20261124/`.
+> A etapa 10, a validação em iPhone físico com VoiceOver e a integração com o
+> Netlify real ficam pendentes.
+
 > **Verificação local da etapa 8, 24 de novembro de 2026.** Os builds de código
 > e do hook partilham uma reserva persistente. A reconciliação confirma um deploy
 > online pela API do Netlify e pelo manifesto público do artefacto. Uma resposta

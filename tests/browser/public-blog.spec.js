@@ -238,7 +238,7 @@ test('404 surfaces render a readable navbar consistently across SSR and hydratio
       const serverClasses = classesFromHtml(await rawResponse.text());
       const response = await page.goto(route);
       expect(response.status()).toBe(expectedStatus);
-      await expect(page.locator('main')).toContainText('Página não encontrada');
+      await expect(page.locator('main')).toContainText(route === '/admin' ? 'Painel editorial' : 'Página não encontrada');
       const clientClasses = await page.locator('nav').getAttribute('class');
       expect(clientClasses).toBe(serverClasses);
       expect(clientClasses).toContain('bg-ink/92');

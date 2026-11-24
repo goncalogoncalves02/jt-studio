@@ -72,13 +72,32 @@ Run these from the repository root with Node 24.21.0:
 - `npm run build:fixture` — explicit synthetic-release client/SSR rendering proof.
 - `npm run test:unit` — discovers every `tests/unit/*.test.mjs` module, covering metadata, script-safe bootstrap serialization, and raw HTML for all five existing routes. Requires a successful `npm run build:fixture` immediately beforehand; legacy-build artifact checks are kept under `tests/legacy/` so this gate stays fixture-only.
 
+## Editorial panel
+
+The article list retrieves up to 20 summaries. It fetches a body and its media
+only when the editor opens that article. Saves use a single queue against the
+last acknowledged revision. A conflict preserves the latest local text and
+requires the editor to review the current saved revision before applying changes.
+
+Run `npm run build:fixture` before
+`npm run test:e2e -- tests/e2e/editor.spec.js tests/e2e/accessibility.spec.js`.
+The proof uses the actual Function handlers with local Auth, Storage and PostgreSQL.
+The Netlify provider is simulated. Browser checks cover 390 px and 1440 px
+layouts, keyboard controls, and axe on the panel. Device and VoiceOver acceptance
+remain separate.
+
+The public entry graph check runs during each site build. The deployed source
+references, build instructions and licence notices for the image codecs are under
+`/codec-notices/`. The worker rejects native WebP variants that carry metadata
+and uses the existing WebAssembly encoder for those images.
+
 ## Image processing
 
 The editor image pipeline is isolated under `src/blog/` and runs in a module worker. `validateInputImage(file)` checks the byte signature and bounded header dimensions; HEIF/AVIF top-level boxes are scanned by file offset within a 4,096-box budget, reading only bounded `ftyp` and `meta` boxes and rejecting duplicate metadata before decoder loading. `optimizeImage(file, { signal, onProgress })` decodes one image, strips source metadata by drawing pixels to canvas, and returns SHA-256 identified WebP variants at distinct eligible widths 480, 960, and the master width. The master is capped by its longest side at 1,600 pixels; variants preserve aspect ratio and never enlarge. Inputs above 30 MiB, 12,000 pixels on either axis, or 60 megapixels are rejected before full bitmap decoding when their headers contain dimensions. HEIC/HEIF is handled by the task-local generated ESM/WASM adapter under `src/blog/codecs/`; it is built from libheif 1.23.6 with libde265 1.1.3, selects the primary image, and loads only when the worker receives HEIC/HEIF. The pinned-source provenance, source archive digests, compiler identity, adapter interface, and exact build flags are maintained beside the explicit rebuild script and in the Task 2 report. Ordinary site builds consume the checked-in generated codec files and do not download source or compile C++. AVIF continues through the browser decoder when available. Native WebP output is accepted only when its MIME and RIFF signature both match; otherwise the locally bundled `@jsquash/webp` 1.5.0 WASM encoder is used. WASM quality is converted from the pipeline's native 0–1 scale to jSquash's 0–100 scale.
 
 The measured landscape iPhone XR CC0 sample at `tests/fixtures/media/iphone-xr-original.HEIC` produced widths 480, 960, and 1600 at initial quality 0.84, all below their 128, 256, and 512 KiB targets in the recorded Chromium run. For a 3024×4032 portrait, the corresponding variants are 480×640, 960×1280, and 1200×1600. Quality may descend to 0.78 to reach each target; each returned variant also enforces the 1 MiB upload ceiling. See `tests/fixtures/media/README.md`, `third_party_licenses/README.md`, and the ignored `.superpowers/sdd/2026-10-11-blog-editorial/task2-report.md` for fixture, license, and measured browser details. The public sample and desktop browser tests do not establish manual iPhone/Safari editor acceptance.
 
-The normal public build must remain free of codec assets. Browser proofs build a private test harness from the same worker entry and use the normal production build output. Run Chromium with `PLAYWRIGHT_BROWSERS_PATH` set to a local Playwright cache. For the local WebKit host-library overlay only, set it to the task-owned browser-cache overlay under `/tmp`; that overlay is a test-runtime prerequisite and is not an application dependency. Do not add machine-specific paths to project configuration.
+Public routes must keep editor and codec code out of their client entry graph. Browser proofs build a private test harness from the same worker entry and use the normal production build output. Run Chromium with `PLAYWRIGHT_BROWSERS_PATH` set to a local Playwright cache. For the local WebKit host-library overlay only, set it to the task-owned browser-cache overlay under `/tmp`; that overlay is a test-runtime prerequisite and is not an application dependency. Do not add machine-specific paths to project configuration.
 
 ### Rebuilding the HEIC decoder
 
@@ -96,8 +115,9 @@ Storage URLs. SQL release posts retain immutable public object keys without URLs
 The renderer constructs the public URLs from those keys after the editorial slot
 verifies that media promotion is complete. It verifies the digest of the exact
 stored payload text. Per-post browser navigation requests only that versioned post JSON, not
-the other article bodies. `/admin` currently renders a noindex not-found page and
-is absent from the sitemap; Task 9 owns the admin UI.
+the other article bodies. The `/admin` HTML shell has no private data, carries
+`noindex, nofollow` in its metadata and headers, and stays outside the sitemap.
+The editor and codecs load through the authenticated panel's lazy entry points.
 
 Generated `/blog/*` files take priority over the Netlify 404 redirect, and missing
 static blog files follow `/blog/* /404.html 404` before the SPA fallback. `_headers`

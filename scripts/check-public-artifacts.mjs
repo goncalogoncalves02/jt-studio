@@ -95,7 +95,7 @@ function listFiles(root, prefix = '') {
   });
 }
 
-export function checkPublicArtifacts(outDir, expectedReleaseId) {
+export function checkPublicArtifacts(outDir, expectedReleaseId, publicAssets) {
   const siteDir = path.resolve(outDir);
   const releaseManifest = JSON.parse(readFileSync(path.join(siteDir, 'blog-release.json'), 'utf8'));
   assert.deepEqual(Object.keys(releaseManifest).sort(), ['deployId', 'digest', 'releaseId', 'schema']);
@@ -178,10 +178,17 @@ export function checkPublicArtifacts(outDir, expectedReleaseId) {
   }
   assert.doesNotMatch(sitemap, /\/admin|\/404|draft|preview/iu);
   const publicFiles = listFiles(siteDir);
-  assert.ok(!publicFiles.some((file) => file.endsWith('.wasm')));
   const clientAssets = publicFiles.filter((file) => file.startsWith('assets/') && /\.(?:js|css)$/u.test(file));
-  const banned = /@supabase\/supabase-js|supabase-js|@tiptap|blog-drafts|\/storage\/v1\/object\/sign\/|SUPABASE_SERVICE_ROLE_KEY|INCOMING_HOOK_BODY|\.wasm/iu;
-  for (const asset of clientAssets) assert.doesNotMatch(readFileSync(path.join(siteDir, asset), 'utf8'), banned, `${asset} must not contain editorial SDK, private media, server keys, editor or WASM`);
+  const privateData = /@supabase\/supabase-js|supabase-js|blog-drafts|\/storage\/v1\/object\/sign\/|SUPABASE_SERVICE_ROLE_KEY|INCOMING_HOOK_BODY/iu;
+  for (const asset of clientAssets) assert.doesNotMatch(readFileSync(path.join(siteDir, asset), 'utf8'), privateData);
+  assert.ok(Array.isArray(publicAssets) && publicAssets.length > 0, 'public entry graph was checked at build time');
+  assert.ok(publicAssets.some((file) => /^assets\/index-.*\.js$/u.test(file)));
+  for (const asset of publicAssets) {
+    assert.ok(clientAssets.includes(asset));
+    assert.doesNotMatch(readFileSync(path.join(siteDir, asset), 'utf8'), /@tiptap|\.wasm|\/api\/admin\//iu);
+  }
+  assert.ok(publicFiles.includes('codec-notices/heif-codec.manifest.json'));
+  assert.ok(publicFiles.includes('codec-notices/libheif-COPYING.txt'));
   const redirectRules = readFileSync(path.join(projectRoot, 'public/_redirects'), 'utf8');
   assert.match(redirectRules, /^\/blog\/\* \/404\.html 404$/mu);
   assert.doesNotMatch(redirectRules, /^\/blog\/\* .*404!$/mu);
@@ -195,6 +202,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const manifestPath = path.resolve(projectRoot, process.argv[2] ?? 'dist/fixture/manifest.json');
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   assert.equal(manifest.mode, 'fixture', 'artifact checker expects an explicit fixture build');
-  const report = checkPublicArtifacts(manifest.siteDir, manifest.releaseId);
+  const report = checkPublicArtifacts(manifest.siteDir, manifest.releaseId, manifest.publicAssets);
   process.stdout.write(`Checked ${report.routes} prerendered routes, ${report.aliases} aliases, ${report.posts} public posts, versioned data, SEO, sitemap, and browser artifact boundaries.\n`);
 }

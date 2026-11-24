@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { adminFetch, subscribeSession } from './api.js';
+import { AdminApiError, adminFetch, subscribeSession } from './api.js';
 import { sessionEpoch } from './session.js';
 import { optimizeImage } from '../blog/image-processing.js';
 
@@ -77,7 +77,7 @@ export default function MediaPicker({ onComplete, disabled = false }) {
     } catch (error) {
       if (!canUpdate()) return;
       if (error?.name === 'AbortError') setStatus('Carregamento cancelado.');
-      else setStatus(error?.message ?? 'Não foi possível carregar a imagem.');
+      else setStatus(error instanceof AdminApiError ? 'Não foi possível carregar a imagem. Tente novamente.' : error?.message ?? 'Não foi possível carregar a imagem.');
     } finally {
       if (ownsOperation()) {
         controllerRef.current = null;
@@ -112,6 +112,7 @@ export default function MediaPicker({ onComplete, disabled = false }) {
           }}
         />
       </label>
+      <a className="editor-text-link" href="/codec-notices/README.md" target="_blank" rel="noreferrer">Licenças de imagem</a>
       {status && <p role="status" aria-live="polite">{status}</p>}
       {progress?.stage === 'encode' && Number.isInteger(progress.completed) && Number.isInteger(progress.total) && (
         <progress aria-label="Progresso do processamento" max={progress.total} value={progress.completed} />

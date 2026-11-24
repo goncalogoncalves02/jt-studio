@@ -50,7 +50,9 @@ export async function savePost(auth, input, expectedRevision) {
   }
   const { id, ...draftInput } = input ?? {};
   if (id !== undefined) assertUuid(id, 'Post id');
-  const draft = validateDraft(draftInput);
+  let draft;
+  try { draft = validateDraft(draftInput); }
+  catch { throw new BlogRepositoryError(400, 'The editorial input is incomplete or invalid.', 'BLOG_INVALID_INPUT'); }
   const p_input = id === undefined ? draft : { ...draft, id };
   return rpc(auth, 'savePost', { post: p_input, expectedRevision });
 }

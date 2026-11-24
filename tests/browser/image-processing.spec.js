@@ -60,7 +60,7 @@ async function optimize(page) {
 }
 
 function decoderRequests(requests) {
-  return requests.filter((url) => /\/heif-(?:codec|decoder)(?:[-./]|$)|\.wasm(?:\?|$)/i.test(new URL(url).pathname));
+  return requests.filter((url) => /\/heif-(?:codec|decoder)(?:[-./]|$)/i.test(new URL(url).pathname));
 }
 
 function topLevelBoxes(bytes) {

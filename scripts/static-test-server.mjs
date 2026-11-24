@@ -18,7 +18,7 @@ const mime = new Map([
   ['.html', 'text/html; charset=utf-8'], ['.js', 'text/javascript; charset=utf-8'], ['.mjs', 'text/javascript; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'], ['.json', 'application/json; charset=utf-8'], ['.xml', 'application/xml; charset=utf-8'],
   ['.svg', 'image/svg+xml'], ['.png', 'image/png'], ['.webp', 'image/webp'], ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'],
-  ['.woff2', 'font/woff2'], ['.ico', 'image/x-icon'],
+  ['.wasm', 'application/wasm'], ['.woff2', 'font/woff2'], ['.ico', 'image/x-icon'],
 ]);
 
 async function existingFile(candidate) {
@@ -61,6 +61,7 @@ const server = http.createServer(async (request, response) => {
   }
   const relative = path.relative(root, file).split(path.sep).join('/');
   const headers = { 'content-type': mime.get(path.extname(file)) ?? 'application/octet-stream', 'x-content-type-options': 'nosniff' };
+  if (relative === 'admin.html') headers['x-robots-tag'] = 'noindex, nofollow';
   if (relative.startsWith('blog-data/')) headers['cache-control'] = 'public, max-age=31536000, immutable';
   else if (relative.startsWith('assets/')) headers['cache-control'] = 'public, max-age=31536000, immutable';
   else headers['cache-control'] = 'public, max-age=0, must-revalidate';

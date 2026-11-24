@@ -12,8 +12,12 @@
 /blog/*.html
   Cache-Control: public, max-age=0, must-revalidate
 
+/admin
+  X-Robots-Tag: noindex, nofollow
+
 /admin.html
   Cache-Control: public, max-age=0, must-revalidate
+  X-Robots-Tag: noindex, nofollow
 
 /404.html
   Cache-Control: public, max-age=0, must-revalidate

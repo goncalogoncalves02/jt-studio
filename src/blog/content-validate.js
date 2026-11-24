@@ -31,7 +31,7 @@ function textValue(value, label, maxLength) {
   return normalized;
 }
 
-function normalizeLink(href) {
+export function normalizeLink(href) {
   if (typeof href !== 'string' || !href
       || Array.from(href).some((character) => character === '\\' || character.codePointAt(0) <= 0x20)) {
     fail('link URL is invalid');

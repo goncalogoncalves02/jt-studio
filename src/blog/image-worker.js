@@ -1,18 +1,14 @@
 import { INITIAL_QUALITY, MIN_QUALITY, PIPELINE_VERSION, UPLOAD_MAX_BYTES, MediaPipelineError, assertDimensions, buildVariantDimensions, getMasterDimensions } from './media-contract.js';
 import { validateInputImage } from './media-header.js';
+import { isStaticUploadWebp } from './webp-upload.js';
 
 let active = true;
-
-function hasWebPSignature(bytes) {
-  return bytes.length >= 12 && String.fromCharCode(...bytes.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.subarray(8, 12)) === 'WEBP';
-}
 
 async function encode(canvas, quality) {
   if (typeof canvas.convertToBlob === 'function') {
     try {
       const native = await canvas.convertToBlob({ type: 'image/webp', quality });
-      const sig = new Uint8Array(await native.slice(0, 12).arrayBuffer());
-      if (native?.type === 'image/webp' && native.size >= 12 && hasWebPSignature(sig)) return { blob: native, encoder: 'native' };
+      if (native?.type === 'image/webp' && isStaticUploadWebp(new Uint8Array(await native.arrayBuffer()))) return { blob: native, encoder: 'native' };
     } catch (error) {
       if (error?.name === 'AbortError') throw error;
       /* A rejected native encoder gets the same local WASM fallback as an invalid MIME/signature. */
@@ -23,8 +19,7 @@ async function encode(canvas, quality) {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   const bytes = await encodeWebP(imageData, { quality: Math.round(quality * 100) });
   const blob = new Blob([bytes], { type: 'image/webp' });
-  const sig = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
-  if (!hasWebPSignature(sig)) throw new MediaPipelineError('O codificador não produziu um WebP válido.');
+  if (!isStaticUploadWebp(new Uint8Array(bytes))) throw new MediaPipelineError('O codificador não produziu um WebP válido.');
   return { blob, encoder: 'wasm' };
 }
 
