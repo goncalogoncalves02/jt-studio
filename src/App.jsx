@@ -4,6 +4,10 @@ import Services from "./pages/Services";
 import Info from "./pages/Info";
 import Gallery from "./pages/Gallery";
 import Contact from "./pages/Contact";
+import Blog from "./pages/Blog.jsx";
+import BlogPost from "./pages/BlogPost.jsx";
+import AdminRoute from './admin/AdminRoute.jsx';
+import NotFound from "./pages/NotFound.jsx";
 import NavBar from "./components/NavBar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -20,6 +24,10 @@ function App() {
           <Route path="/info" element={<Info />} />
           <Route path="/galeria" element={<Gallery />} />
           <Route path="/contactos" element={<Contact />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          {import.meta.env.MODE !== "legacy" && <Route path="/admin" element={<AdminRoute />} />}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <Footer />

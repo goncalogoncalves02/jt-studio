@@ -1,2 +1,5 @@
 https://www.jaquelinetakiutistudio.com/* https://jaquelinetakiutistudio.com/:splat 301!
-/* /index.html  200
+/admin /admin.html 200
+/admin/* /404.html 404
+/blog/* /404.html 404
+/* /index.html 200

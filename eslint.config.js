@@ -5,17 +5,15 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '.netlify/**', '.superpowers/**', 'src/blog/codecs/heif-decoder.js']),
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,mjs}'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
     ],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
@@ -24,6 +22,42 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+  {
+    files: ['**/*.jsx'],
+    extends: [reactRefresh.configs.vite],
+  },
+  {
+    files: ['src/**/*.{js,jsx}', 'tests/browser/**/*.{js,jsx,mjs}'],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+  {
+    files: [
+      'scripts/**/*.mjs',
+      'tests/unit/**/*.mjs',
+      'tests/legacy/**/*.mjs',
+      'tests/db/**/*.mjs',
+      'server/**/*.mjs',
+      'netlify/functions/**/*.mjs',
+      '*.config.{js,mjs,cjs}',
+    ],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['tests/browser/**/*.{js,jsx,mjs}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['tests/e2e/**/*.mjs'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
     },
   },
 ])

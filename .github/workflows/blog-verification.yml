@@ -1,0 +1,72 @@
+name: Blog Editorial Verification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blog-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-blog:
+    # Strictly ephemeral GitHub-hosted runner; never run against shared or persistent local/hosted environments.
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /tmp/jt-studio-browsers
+      SUPABASE_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Setup Node.js 24.21.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+
+      - name: Install dependencies (strict lockfile)
+        run: npm ci --ignore-scripts=false
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Configure runner-local Docker context for loopback helpers
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          if ! docker context inspect desktop-linux >/dev/null 2>&1; then
+            docker context create desktop-linux --docker "host=unix:///var/run/docker.sock" >/dev/null
+          fi
+
+      - name: Start fresh throwaway runner-local Supabase runtime
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          umask 077
+          docker network create --driver bridge \
+            --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 jt-blog-ci >/dev/null
+          if ! npx supabase start --network-id jt-blog-ci \
+            --exclude realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor \
+            >"$RUNNER_TEMP/jt-blog-supabase.log" 2>&1; then
+            echo "::error::Runner-local Supabase failed to start"
+            exit 1
+          fi
+          test "$(docker port supabase_db_jt-studio-blog-tests 5432/tcp)" = 127.0.0.1:54342
+          test "$(docker port supabase_kong_jt-studio-blog-tests 8000/tcp)" = 127.0.0.1:54341
+
+      - name: Run integrated blog verification gate
+        run: |
+          umask 077
+          gate_log="$RUNNER_TEMP/jt-blog-verify.log"
+          gate_status=0
+          npm run verify:blog >"$gate_log" 2>&1 || gate_status=$?
+          if ! tail -n 1 "$gate_log" | jq -ce 'select(.schema == 1) | {status, setupFailure, steps, pending}'; then
+            echo "::error::Integrated verification produced no report"
+            exit 1
+          fi
+          exit "$gate_status"

@@ -1,19 +1,28 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+const LEGACY_DARK_ROUTES = new Set(['/', '/servicos', '/info', '/galeria', '/contactos']);
+
 const NavBar = () => {
-  const [scrolled, setScrolled] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const { pathname } = useLocation();
+  const [scrolledPath, setScrolledPath] = useState(null);
+  const [drawerPath, setDrawerPath] = useState(null);
+  const { pathname, search, hash } = useLocation();
+  const locationKey = `${pathname}${search}${hash}`;
+  const normalizedPath = pathname.replace(/\/+$/u, '') || '/';
+  const lightPublicRoute = !LEGACY_DARK_ROUTES.has(normalizedPath);
+  const scrolled = scrolledPath === pathname;
+  const opaqueNav = scrolled || lightPublicRoute;
+  const drawerOpen = drawerPath === locationKey;
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
-    onScroll();
+    const onScroll = () => setScrolledPath(window.scrollY > 60 ? pathname : null);
+    const initialScrollFrame = window.requestAnimationFrame(onScroll);
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => { setDrawerOpen(false); }, [pathname]);
+    return () => {
+      window.cancelAnimationFrame(initialScrollFrame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [pathname]);
 
   const links = [
     { label: "Início", to: "/" },
@@ -21,11 +30,12 @@ const NavBar = () => {
     { label: "Galeria", to: "/galeria" },
     { label: "Info & FAQ", to: "/info" },
     { label: "Contactos", to: "/contactos" },
+    { label: "Blog", to: "/blog" },
   ];
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-[100] flex justify-between items-center text-cream transition-all duration-[350ms] max-[700px]:!px-[22px] ${scrolled ? "bg-ink/92 backdrop-blur-[14px] border-b border-cream/[.08] px-12 py-[14px]" : "bg-transparent px-12 py-[18px]"}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[100] flex justify-between items-center text-cream ${lightPublicRoute ? "transition-none" : "transition-all"} duration-[350ms] max-[1100px]:!px-6 max-[700px]:!px-[22px] ${opaqueNav ? "bg-ink/92 backdrop-blur-[14px] border-b border-cream/[.08] px-12 py-[14px]" : "bg-transparent px-12 py-[18px]"}`}>
 
         <Link to="/" aria-label="JT Studio — Jaqueline Takiuti" className="flex items-center gap-[10px] no-underline text-cream min-h-[44px] py-[9px]">
           <span className="font-serif text-[26px] font-normal italic leading-none tracking-[0.01em]">
@@ -36,7 +46,7 @@ const NavBar = () => {
           </span>
         </Link>
 
-        <ul className="hidden lg:flex gap-[40px] items-center list-none m-0 p-0">
+        <ul className="hidden lg:flex gap-5 xl:gap-[40px] items-center list-none m-0 p-0">
           {links.map((link) => (
             <li key={link.to}>
               <Link
@@ -52,13 +62,13 @@ const NavBar = () => {
         <a
           href="https://www.sumupbookings.com/takiuti-studio"
           target="_blank" rel="noopener noreferrer"
-          className="hidden lg:flex items-center gap-2 font-sans font-semibold uppercase text-[13px] tracking-[0.1em] py-[13px] px-6 rounded-full bg-rose text-cream no-underline hover:bg-rose-deep transition-colors duration-[250ms]"
+          className="hidden lg:flex items-center gap-2 font-sans font-semibold uppercase text-[13px] tracking-[0.1em] py-[13px] px-6 max-[1100px]:!px-4 rounded-full bg-rose text-cream no-underline hover:bg-rose-deep transition-colors duration-[250ms]"
         >
           Marcar <span>→</span>
         </a>
 
         <button
-          onClick={() => setDrawerOpen(!drawerOpen)}
+          onClick={() => setDrawerPath(drawerOpen ? null : locationKey)}
           className="lg:hidden flex items-center justify-center w-11 h-11 border border-current rounded-full bg-transparent text-cream cursor-pointer text-[18px]"
           aria-label={drawerOpen ? "Fechar menu" : "Abrir menu"}
         >
@@ -67,11 +77,12 @@ const NavBar = () => {
       </nav>
 
       {drawerOpen && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-ink text-cream pt-[90px] px-8 pb-10">
+        <div className="fixed inset-0 z-40 flex flex-col overflow-y-auto bg-ink text-cream pt-[90px] px-8 pb-10">
           {links.map((link) => (
             <Link
               key={link.to}
               to={link.to}
+              onClick={() => setDrawerPath(null)}
               className="font-serif text-[42px] font-light py-[18px] border-b border-cream/[.12] no-underline text-cream hover:text-gold-light tracking-[-0.015em] transition-colors duration-200"
             >
               {link.to === "/servicos" || link.to === "/contactos"
