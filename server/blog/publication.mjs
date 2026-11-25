@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { promotePublicationVariant } from './media.mjs';
 import { verifyDeployEvidence } from './netlify-api.mjs';
+import { isBuildReleaseId } from './release-id.mjs';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/u;
@@ -61,7 +62,8 @@ function safeStatus(value) {
 
 function validateSummary(summary) {
   if (!summary || typeof summary !== 'object' || !DIGEST_PATTERN.test(summary.digest ?? '')
-      || !Array.isArray(summary.changes) || !UUID_PATTERN.test(summary.baseReleaseId ?? '')) {
+      || !Array.isArray(summary.changes)
+      || !isBuildReleaseId(summary.baseReleaseId)) {
     throw new BlogPublicationError(503, 'BLOG_PUBLICATION_UNAVAILABLE');
   }
   const changes = summary.changes.map((change) => {

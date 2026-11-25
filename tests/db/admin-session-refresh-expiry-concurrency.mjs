@@ -95,7 +95,7 @@ async function run() {
     currentStage = 'connect-db';
     await Promise.all([blocker.connect(), observer.connect()]);
     currentStage = 'fixture-baseline';
-    const baseline = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) owner_null,(select count(*)::int from blog_private.admin_sessions) sessions');
+    const baseline = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) owner_null,(select count(*)::int from blog_private.admin_sessions where revoked_at is null) sessions');
     if (!baseline.rows[0]?.owner_null || baseline.rows[0].sessions !== 0) stop('task4-refresh-fixture-baseline');
     currentStage = 'install-owner';
     const installed = await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton and authorized_owner_id is null', [ownerId]);
@@ -185,7 +185,7 @@ async function run() {
       );
       if (restoration.rowCount !== 1) process.stderr.write(`Task 4 refresh fixture owner restore was not exact (code ${restoration.code ?? 'count-mismatch'}).\n`);
     }
-    const final = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) owner_null,(select count(*)::int from blog_private.admin_sessions) sessions').then(
+    const final = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) owner_null,(select count(*)::int from blog_private.admin_sessions where revoked_at is null) sessions').then(
       result => result.rows[0],
       () => null,
     );

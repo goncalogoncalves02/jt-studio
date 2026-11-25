@@ -161,6 +161,43 @@ test('acquireBuild claims slot before returning digest-verified immutable releas
   });
 });
 
+test('fresh production code build acquires, asserts, and reconciles the seeded empty release', async () => {
+  const seed = '00000000-0000-0000-0000-000000000001';
+  const envelope = releaseEnvelope(seed);
+  const rpc = async (name, args) => {
+    if (name === 'blog_build_active_code_slot') return { data: { active: false } };
+    if (name === 'blog_build_acquire') {
+      assert.equal(args.p_hook_payload, null);
+      return { data: { ...envelope, generation: 1, buildKind: 'code' } };
+    }
+    assert.equal(name, 'blog_build_assert_current');
+    assert.equal(args.p_release_id, seed);
+    return { data: { ok: true } };
+  };
+  assert.equal((await acquireBuild({ env: baseBuildEnv(), rpc })).releaseId, seed);
+  await assertBuildCurrent({ deployId, releaseId: seed, generation: 1, rpc });
+
+  const netlifyClient = createNetlifyClient({
+    siteId,
+    apiToken: 'synthetic-netlify-token',
+    publicOrigin,
+    fetchImpl: async (url) => {
+      if (url.endsWith('/blog-release.json')) {
+        return Response.json({ releaseId: seed, deployId, digest: envelope.digest, schema: 1 });
+      }
+      if (url.includes('/deploys/')) {
+        return Response.json({ id: deployId, site_id: siteId, context: 'production', branch: 'main', state: 'ready' });
+      }
+      return Response.json({ id: siteId, published_deploy: { id: deployId } });
+    },
+  });
+  assert.deepEqual(await verifyDeployEvidence({ netlifyClient, deployId, releaseId: seed, expectedDigest: envelope.digest }),
+    { outcome: 'live', publishedDeployId: deployId });
+  assert.throws(() => parseIncomingHookBody({
+    INCOMING_HOOK_BODY: encodeURIComponent(JSON.stringify({ requestId, releaseId: seed, attemptId })),
+  }), /invalid|malformed/i);
+});
+
 test('acquireBuild reconciles a previous completed code slot before acquiring, and never releases its own active deployId', async () => {
   const envelope = releaseEnvelope();
   const calls = [];

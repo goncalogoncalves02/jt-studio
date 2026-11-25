@@ -1,5 +1,39 @@
 # Blog editorial — pausa e ponto de retoma (execução de 2026-10-11)
 
+> **Etapa 10, implementação e verificação integrada local.** O comando
+> `npm run verify:blog` encadeia lint, testes unitários e SQL, builds,
+> E2E e Chromium. A prova do fluxo editorial usa Auth, PostgreSQL, Storage,
+> browser e artefactos reais no ambiente de testes. O hook e a API do
+> Netlify são simulados. O workflow de PR foi preparado para um runner
+> efémero, com Supabase local e fixtures sintéticas.
+>
+> A cobertura local inclui 163 testes unitários, sete gates SQL, concorrência,
+> três provas legacy, 33 testes Chromium e os E2E existentes e novo. O fluxo
+> publicou dez artigos com um único hook simulado e manteve o rascunho fora.
+> Confirmou a revisão e remoção, a repetição do mesmo snapshot após falha e
+> a rejeição do callback tardio. Em viewport de 390 px e rede de 200 kbit/s
+> com 400 ms RTT, o browser escolheu a variante de 480 px (11 648 bytes),
+> sem overflow horizontal.
+>
+> A revisão do coordenador encontrou uma falha de arranque em base nova.
+> O resumo e o build rejeitavam o identificador da release inicial. A
+> correção aceita o valor criado pela migração no resumo, build e verificação
+> do manifesto. Os pedidos, tentativas e payloads do hook mantêm a validação
+> existente.
+>
+> O ensaio vazio aplicou as 15 migrações em PostgreSQL 17.11. A CLI local
+> reportou zero ocorrências em `db advisors --local` e cinco avisos de
+> variáveis sem uso em `db lint --local`, todos em migrações anteriores.
+> O primeiro arranque da experiência no Docker Desktop abriu temporariamente
+> as portas da base sintética em interfaces externas. Os containers foram
+> parados, os listeners fecharam e a execução do fluxo usou binds explícitos
+> para `127.0.0.1`. O ambiente persistente ficou ativo.
+>
+> Consultar [o runbook](blog-development.md) e a evidência local em
+> `.superpowers/sdd/2026-10-11-blog-editorial/task10-local-20261125/`.
+> CI remoto, preview HTTPS isolado, WhatsApp, iPhone físico com VoiceOver
+> e deploy continuam pendentes de verificação e das autorizações aplicáveis.
+
 > **Implementação local da etapa 9.** O painel `/admin` mantém a navegação,
 > a tipografia e a paleta do site. A lista lateral acompanha o editor em desktop.
 > Em mobile, a lista, a escrita e a revisão têm vistas próprias.
@@ -16,8 +50,8 @@
 > privados. A revisão visual foi feita em Chromium a 390 e 1440 px.
 >
 > Evidência em `.superpowers/sdd/2026-10-11-blog-editorial/task9-local-20261124/`.
-> A etapa 10, a validação em iPhone físico com VoiceOver e a integração com o
-> Netlify real ficam pendentes.
+> A validação em iPhone físico com VoiceOver e a integração com o Netlify real
+> ficam pendentes.
 
 > **Verificação local da etapa 8, 24 de novembro de 2026.** Os builds de código
 > e do hook partilham uma reserva persistente. A reconciliação confirma um deploy

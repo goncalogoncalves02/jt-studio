@@ -64,7 +64,7 @@ async function run() {
   let mutationPending;
   try {
     await Promise.all([blocker.connect(), mutation.connect(), observer.connect()]);
-    const baseline = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) as owner_null,(select count(*)::int from blog_private.admin_sessions) as sessions');
+    const baseline = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) as owner_null,(select count(*)::int from blog_private.admin_sessions where revoked_at is null) as sessions');
     if (!baseline.rows[0]?.owner_null || baseline.rows[0]?.sessions !== 0) stop('task4-session-fixture-baseline');
     const installed = await observer.query('update blog_private.settings set authorized_owner_id=$1 where singleton and authorized_owner_id is null', [ownerId]);
     if (installed.rowCount !== 1) stop('task4-owner-install');
@@ -103,7 +103,7 @@ async function run() {
     if (mutationPending) await mutationPending.catch(() => {});
     await observer.query('delete from blog_private.admin_sessions where session_id=$1', [sessionId]).catch(() => {});
     if (ownerInstalled) await observer.query('update blog_private.settings set authorized_owner_id=null where singleton and authorized_owner_id=$1', [ownerId]).catch(() => {});
-    const finalBaseline = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) as owner_null,(select count(*)::int from blog_private.admin_sessions) as sessions').catch(() => null);
+    const finalBaseline = await observer.query('select (select authorized_owner_id is null from blog_private.settings where singleton) as owner_null,(select count(*)::int from blog_private.admin_sessions where revoked_at is null) as sessions').catch(() => null);
     await Promise.all([blocker.end().catch(() => {}), mutation.end().catch(() => {}), observer.end().catch(() => {})]);
     await close();
     if (!finalBaseline?.rows[0]?.owner_null || finalBaseline.rows[0]?.sessions !== 0) stop('task4-session-fixture-cleanup');

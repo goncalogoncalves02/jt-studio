@@ -1,11 +1,10 @@
 # Spec — Blog editorial do JT Studio
 
-Última revisão: 2026-10-11.
-
-**Estado:** spec e [plano de implementação](superpowers/plans/2026-10-11-blog-editorial.md)
-aprovados pelo utilizador em 2026-10-11. A implementação local está em curso na branch
-`feature/blog-editorial`, numa worktree isolada. A feature ainda não está concluída.
-Push, PR, merge e deploy continuam a exigir autorização explícita.
+Spec e [plano de implementação](superpowers/plans/2026-10-11-blog-editorial.md)
+aprovados pelo utilizador em 2026-10-11. Consultar [o handoff](blog-handoff.md)
+para o estado da implementação local na branch `feature/blog-editorial` e os
+resultados da verificação. Push, PR, merge e deploy continuam a exigir autorização
+explícita.
 
 Esta revisão substitui a proposta de 2026-09-15 do branch
 `claude/awesome-hamilton-xizq67`. Conserva o objetivo de gerar HTML estático indexável,

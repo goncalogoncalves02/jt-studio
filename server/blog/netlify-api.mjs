@@ -1,7 +1,8 @@
+import { isBuildReleaseId } from './release-id.mjs';
+
 const NETLIFY_API_ORIGIN = 'https://api.netlify.com';
 const SITE_ID_PATTERN = /^[A-Za-z0-9._-]{3,128}$/u;
 const DEPLOY_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/u;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const TERMINAL_FAILED_DEPLOY_STATES = new Set(['error', 'rejected', 'canceled', 'cancelled']);
 
@@ -119,7 +120,7 @@ export function createNetlifyClient({
     });
     const data = await readJsonResponse(response);
     if (!data || typeof data !== 'object' || Array.isArray(data)
-        || !UUID_PATTERN.test(data.releaseId ?? '')
+        || !isBuildReleaseId(data.releaseId)
         || typeof data.deployId !== 'string' || !DEPLOY_ID_PATTERN.test(data.deployId)
         || typeof data.digest !== 'string' || !SHA256_PATTERN.test(data.digest)
         || data.schema !== 1) {
@@ -150,7 +151,7 @@ export async function verifyDeployEvidence({
   deadlineSignal,
 } = {}) {
   if (!netlifyClient || typeof deployId !== 'string' || !DEPLOY_ID_PATTERN.test(deployId)
-      || !UUID_PATTERN.test(releaseId ?? '') || !SHA256_PATTERN.test(expectedDigest ?? '')) {
+      || !isBuildReleaseId(releaseId) || !SHA256_PATTERN.test(expectedDigest ?? '')) {
     return Object.freeze({ outcome: 'pending', publishedDeployId: null });
   }
   let deploy;

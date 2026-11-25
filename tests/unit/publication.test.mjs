@@ -135,6 +135,16 @@ test('prepares the summary through the captured user session and exposes only th
   assert.equal(Object.hasOwn(result, 'payload'), false);
 });
 
+test('accepts the seeded release only as a publication summary base', async () => {
+  const summary = { baseReleaseId: '00000000-0000-0000-0000-000000000001', changes: [], digest };
+  const service = createPublicationService({ rpc: async () => ({ data: null }), hookUrl: hook });
+  const auth = sessionAuth({ userRpc: async () => ({ data: summary, error: null }) });
+  assert.deepEqual(await service.preparePublication(auth), summary);
+
+  summary.baseReleaseId = '00000000-0000-0000-0000-000000000002';
+  await assert.rejects(service.preparePublication(auth), (error) => error.status === 503);
+});
+
 test('confirmation uses the captured user SDK and original app session for the reservation RPC', async () => {
   const calls = [];
   const auth = sessionAuth({

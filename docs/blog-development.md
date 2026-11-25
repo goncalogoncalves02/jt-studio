@@ -1,5 +1,8 @@
 # Blog development and verification
 
+> **Task 10 adds the integrated verification gate and the provisioning procedure.**
+> See [the handoff](blog-handoff.md) for evidence and pending remote and device checks.
+>
 > **Task 8, verified locally on 24 November 2026.** See [the handoff](blog-handoff.md)
 > for the migration, gate evidence and the pending Netlify integration.
 >
@@ -427,3 +430,97 @@ Admin session subscribers receive a closed `reason` value with session changes:
 only that reason and the change type; they never carry credentials, CSRF values,
 or editorial content. Consumers can treat explicit `logout` as a request to clear
 protected editor state, while `reauth-required` preserves drafts for sign-in again.
+
+## Task 10 integrated gate, CI and future provisioning
+
+### Integrated verification (`npm run verify:blog`)
+
+`npm run verify:blog` runs `node scripts/verify-blog.mjs --local` (`verifyBlog({ mode })`) and emits a bounded JSON report (`schema`, `mode`, `ok`, `status`, `setupFailure`, `steps`, `pending`, `recordedAt`). It executes in order:
+
+1. `lint` (`npm run lint`)
+2. `fixture-build` (`npm run build:fixture` + `node scripts/check-public-artifacts.mjs`)
+3. `unit` (`npm run test:unit`)
+4. `db` (`npm run test:db`, `node scripts/test-backend.mjs`, `tests/db/concurrency.mjs`, `tests/db/admin-session-logout-concurrency.mjs`, `tests/db/admin-session-refresh-expiry-concurrency.mjs`, `tests/db/media-session-lock-expiry-concurrency.mjs`)
+5. `published-fixtures` (`npm run build:fixture:published` + `node scripts/check-public-artifacts.mjs dist/published-fixture/manifest.json`)
+6. `legacy` (`npm run build:legacy` + `npm run test:legacy`)
+7. `browser` (`npm run test:browser`)
+8. `e2e-full-flow` (`tests/e2e/full-flow.spec.js`)
+9. `e2e-existing` (`session.spec.js`, `media.spec.js`, `publication.spec.js`, `editor.spec.js`, `accessibility.spec.js`)
+
+- Missing Node `24.21.0`, fixtures, Playwright browser binary, Docker daemon, or loopback service are reported as distinct `setup-failed` codes (`missing-node-version`, `missing-fixture`, `missing-browser`, `missing-daemon`, `missing-loopback-service`), never skipped. `browser` also rebuilds a clean 100-post browser fixture and runs `check-public-artifacts.mjs dist/fixture/manifest.json` before E2E. `mode: 'authorized-preview'` does not invoke remote CLI/deploys; it records manual HTTPS preview, WhatsApp preview, remote CI, iPhone/VoiceOver, and production deploy as `pending`.
+
+The full-flow proof requires an idle slot, zero active sessions and zero prepared
+posts. On a machine with retained test data, set `BLOG_FULL_FLOW_PROJECT_DIR` to
+the directory of a separate, migrated local Supabase project named
+`jt-studio-blog-task10-fresh`. Its API and database must bind to loopback only on
+`55341` and `55342`. The other gates keep using `jt-studio-blog-tests` on `54341`
+and `54342`. Prepare the separate project with the same tracked configuration and
+migration files, changing only the project identity and ports. Verify Docker's
+actual bindings and the host listeners before using either endpoint. The
+Docker Desktop rehearsal needed explicit `127.0.0.1` bindings on the two
+published containers.
+
+### CI workflow (`.github/workflows/blog-verification.yml`)
+
+- Read-only `contents: read` permissions; triggers on `pull_request` and `workflow_dispatch`; `actions/checkout@v4` with `persist-credentials: false`.
+- Pins Node `24.21.0`, strict `npm ci --ignore-scripts=false`, and installs Playwright Chromium before gates.
+- The workflow requires a GitHub-hosted `ubuntu-latest` runner. It creates a local
+  Docker context and a bridge with loopback as its default bind address, then
+  starts a disposable `jt-studio-blog-tests` stack. It verifies that Docker
+  published only `127.0.0.1:54341` and `127.0.0.1:54342` before verification.
+  The runner keeps Supabase startup output and verification logs in private
+  files, prints the structured gate report and discards the stack with the VM.
+- Uses no Supabase login, no linked project, no cloud credentials, and no real Netlify token or build hook.
+
+### Exact migration list (by directory listing)
+
+1. `20261011150958_blog_editorial.sql`
+2. `20261011165354_task3_session_revalidation.sql`
+3. `20261011165819_task3_session_context_cleanup.sql`
+4. `20261011171416_task3_inline_whitespace.sql`
+5. `20261011174135_task3_freeze_set_contract.sql`
+6. `20261011180733_blog_admin_sessions.sql`
+7. `20261011190500_blog_admin_session_security_revalidation.sql`
+8. `20261011204337_blog_private_media.sql`
+9. `20261013174237_task7_publication_dispatch.sql`
+10. `20261013175855_task7_retained_base_media.sql`
+11. `20261013180630_task7_publication_authority_fences.sql`
+12. `20261013184937_task7_publication_summary_provider_fence.sql`
+13. `20261122231804_task7_publication_confirmation_provider_fence.sql`
+14. `20261124224000_task8_build_slot_reconciliation.sql`
+15. `20261124231453_task9_editorial_panel.sql`
+
+### Scoped future provisioning steps (explicit user authorization required)
+
+1. **Local fresh rehearsal first:** Verify the integrated gate, including the separate full-flow backend if the existing test backend has retained articles. Record the local migration and advisor results before coordinator review.
+2. **Existing Supabase project (`jt-studio`).**
+   - Apply the 15 migrations above in order and verify advisors, RLS and effective grants.
+   - The owner creates the account in Auth and disables public signup and anonymous sign-ins.
+     Bind the confirmed account UUID to the database and use the same UUID for `BLOG_ADMIN_USER_ID`.
+     Review the current singleton first. One updated row is expected on first provisioning.
+     An existing UUID requires a separate review before replacement.
+
+     ```sql
+     update blog_private.settings as s
+     set authorized_owner_id = u.id
+     from auth.users as u
+     where s.singleton
+       and s.authorized_owner_id is null
+       and u.id = '<approved-owner-uuid>'::uuid
+       and u.email_confirmed_at is not null
+       and not u.is_anonymous
+     returning s.authorized_owner_id;
+     ```
+
+3. **Netlify environment variables and scopes.** Keep values out of Git and `VITE_*`.
+   - Build and Functions: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BLOG_PUBLIC_ORIGIN`,
+     `BLOG_NETLIFY_SITE_ID` and `BLOG_NETLIFY_API_TOKEN`.
+   - Build only: `NODE_VERSION=24.21.0` and, if its HTTPS origin differs from `SUPABASE_URL`,
+     `BLOG_PUBLIC_STORAGE_ORIGIN`. Netlify supplies `SITE_ID` for comparison.
+   - Functions only: `SUPABASE_ANON_KEY`, `BLOG_ADMIN_USER_ID`, `BLOG_SESSION_ENCRYPTION_KEY`
+     and `BLOG_PUBLICATION_HOOK_URL`. Configure `AWS_LAMBDA_JS_RUNTIME=nodejs24.x` in Netlify.
+     Keep the production hook secret and confirm its site and branch before authorizing its use.
+4. **Authorized HTTPS preview and device acceptance.**
+   - Use an isolated site and backend configuration that cannot publish production. Check
+     raw HTML and sitemap, deploy mapping, login after a reopen, real HEIC, VoiceOver and
+     keyboard on iPhone Safari, and the WhatsApp preview.

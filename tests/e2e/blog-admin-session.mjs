@@ -110,8 +110,14 @@ export async function runSessionProof() {
   const { Client } = await import('pg');
   const db = new Client({ connectionString: status.DB_URL, connectionTimeoutMillis: 5000, query_timeout: 12000, statement_timeout: 12000, application_name: 'jt-studio-task4-browser-proof' });
   await db.connect();
-  const ownerSetting = await db.query('select authorized_owner_id from blog_private.settings where singleton');
-  check(ownerSetting.rowCount === 1 && ownerSetting.rows[0].authorized_owner_id === null, 'owner-baseline-not-null');
+  const fixtureBaselineSql = 'select'
+    + ' (select authorized_owner_id is null from blog_private.settings where singleton) as owner_null,'
+    + ' (select count(*)::int from blog_private.admin_sessions) as sessions,'
+    + ' (select count(*)::int from blog_private.admin_sessions where revoked_at is null) as unrevoked_sessions,'
+    + ' (select count(*)::int from blog_private.admin_sessions where user_id=any($1::uuid[])) as fixture_sessions,'
+    + ' (select count(*)::int from auth.users where id=any($1::uuid[])) as fixture_users';
+  const { rows: [baseline] } = await db.query(fixtureBaselineSql, [[]]);
+  check(baseline?.owner_null && baseline.unrevoked_sessions === 0, 'owner-session-fixture-baseline');
 
   const fixtureEmail = `task4-${randomUUID()}@example.com`;
   const fixturePassword = `Aa9!${randomUUID()}`;
@@ -861,16 +867,13 @@ export async function runSessionProof() {
           if (![200, 202, 204].includes(removed.response.status)) cleanupFailures.push('fixture-auth-user-delete');
         } catch { cleanupFailures.push('fixture-auth-user-delete'); }
       }
-      try {
-        const final = await db.query(`select (select authorized_owner_id is null from blog_private.settings where singleton) owner_null, (select count(*)::int from blog_private.admin_sessions) sessions, (select count(*)::int from auth.users where id=any($1::uuid[])) fixture_users`, [[ownerId, ...(otherUserId ? [otherUserId] : [])]]);
-        if (!final.rows[0]?.owner_null || final.rows[0].sessions !== 0 || final.rows[0].fixture_users !== 0) cleanupFailures.push('fixture-baseline-verify');
-      } catch { cleanupFailures.push('fixture-baseline-verify'); }
-    } else {
-      try {
-        const final = await db.query('select (select authorized_owner_id is null from blog_private.settings where singleton) owner_null,(select count(*)::int from blog_private.admin_sessions) sessions');
-        if (!final.rows[0]?.owner_null || final.rows[0].sessions !== 0) cleanupFailures.push('fixture-baseline-verify');
-      } catch { cleanupFailures.push('fixture-baseline-verify'); }
     }
+    try {
+      const fixtureUserIds = [ownerId, otherUserId].filter(Boolean);
+      const { rows: [final] } = await db.query(fixtureBaselineSql, [fixtureUserIds]);
+      if (!final?.owner_null || final.sessions !== baseline.sessions || final.unrevoked_sessions !== 0
+        || final.fixture_sessions !== 0 || final.fixture_users !== 0) cleanupFailures.push('fixture-baseline-verify');
+    } catch { cleanupFailures.push('fixture-baseline-verify'); }
     await db.end().catch(() => cleanupFailures.push('database-close'));
     await rm(temp, { recursive: true, force: true }).catch(() => cleanupFailures.push('temp-cleanup'));
     if (authUnavailable) process.stdout.write('Task-local Auth transport control was disabled before fixture cleanup.\n');

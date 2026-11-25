@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { createBoundedFetch } from '../server/blog/config.mjs';
 import { createNetlifyClient, verifyDeployEvidence } from '../server/blog/netlify-api.mjs';
+import { isBuildReleaseId } from '../server/blog/release-id.mjs';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
@@ -153,7 +154,7 @@ export async function acquireBuild({ env = process.env, rpc, fetchImpl = fetch, 
     throw new Error(`Failed to acquire production build slot: ${result?.error?.code ?? 'unavailable'}`);
   }
   const data = result.data;
-  if (!UUID_PATTERN.test(data.releaseId ?? '') || typeof data.payload !== 'string'
+  if (!isBuildReleaseId(data.releaseId) || typeof data.payload !== 'string'
       || !SHA256_PATTERN.test(data.digest ?? '') || !Number.isSafeInteger(data.generation)) {
     throw new Error('Acquired release envelope is invalid.');
   }
@@ -181,7 +182,7 @@ export async function acquireBuild({ env = process.env, rpc, fetchImpl = fetch, 
 }
 
 export async function assertBuildCurrent({ deployId, releaseId, generation, env = process.env, rpc, fetchImpl = fetch } = {}) {
-  if (typeof deployId !== 'string' || !DEPLOY_ID_PATTERN.test(deployId) || !UUID_PATTERN.test(releaseId ?? '')) {
+  if (typeof deployId !== 'string' || !DEPLOY_ID_PATTERN.test(deployId) || !isBuildReleaseId(releaseId)) {
     throw new Error('Build identity is invalid.');
   }
   const callRpc = rpc ?? createBuildRpc(env, fetchImpl);

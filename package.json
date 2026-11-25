@@ -18,7 +18,8 @@
     "test:browser": "playwright test",
     "build:media-harness": "node scripts/build-media-harness.mjs",
     "rebuild:heif-codec": "bash scripts/build-heif-codec/rebuild.sh",
-    "test:e2e": "node tests/e2e/run.mjs"
+    "test:e2e": "node tests/e2e/run.mjs",
+    "verify:blog": "node scripts/verify-blog.mjs --local"
   },
   "dependencies": {
     "@jsquash/webp": "1.5.0",
